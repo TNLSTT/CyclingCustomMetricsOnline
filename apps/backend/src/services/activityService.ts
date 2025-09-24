@@ -44,7 +44,7 @@ export async function saveActivity(
     throw new Error('No samples parsed from FIT file.');
   }
 
-  const activity = await prisma.$transaction(async (tx) => {
+  const activity = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.activity.create({
       data: buildActivityData(normalized, userId),
     });

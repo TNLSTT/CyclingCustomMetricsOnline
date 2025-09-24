@@ -1,4 +1,4 @@
-import type { Activity } from '@prisma/client';
+import type { Activity, Prisma } from '@prisma/client';
 
 export interface MetricSample {
   t: number;
@@ -15,7 +15,7 @@ export interface MetricDefinitionShape {
   version: number;
   description: string;
   units?: string;
-  computeConfig?: Record<string, unknown>;
+  computeConfig?: Prisma.JsonValue;
 }
 
 export interface MetricComputationContext {

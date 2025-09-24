@@ -78,7 +78,7 @@ function attachMetrics(activity: ActivityRecord) {
   };
 }
 
-const prismaMock = {
+const prismaMock: any = {
   $transaction: async <T>(fn: (tx: typeof prismaMock) => Promise<T>): Promise<T> => {
     return fn(prismaMock);
   },

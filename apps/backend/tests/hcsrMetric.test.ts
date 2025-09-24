@@ -31,7 +31,7 @@ function buildSamples(): MetricSample[] {
 }
 
 describe('hcsrMetric', () => {
-  it('computes a positive slope when HR increases with cadence', () => {
+  it('computes a positive slope when HR increases with cadence', async () => {
     const samples = buildSamples();
     const activity = {
       id: 'act_1',
@@ -43,7 +43,7 @@ describe('hcsrMetric', () => {
       createdAt: new Date(),
     } as const;
 
-    const result = hcsrMetric.compute(samples, { activity });
+    const result = await Promise.resolve(hcsrMetric.compute(samples, { activity }));
 
     expect(result.summary.slope_bpm_per_rpm).toBeDefined();
     expect(result.summary.slope_bpm_per_rpm).toBeGreaterThan(0.4);

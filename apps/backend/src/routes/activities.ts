@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import { z } from 'zod';
 
@@ -48,7 +48,7 @@ export const activitiesRouter = express.Router();
 
 activitiesRouter.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const params = paginationSchema.parse(req.query);
     const skip = (params.page - 1) * params.pageSize;
 
@@ -77,7 +77,7 @@ activitiesRouter.get(
 
 activitiesRouter.get(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const activity = await prisma.activity.findUnique({
       where: { id: req.params.id },
       include: {
@@ -99,7 +99,7 @@ activitiesRouter.get(
 
 activitiesRouter.post(
   '/:id/compute',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const body = computeSchema.parse(req.body);
     const metricKeys = body?.metricKeys;
 
@@ -110,7 +110,7 @@ activitiesRouter.post(
 
 activitiesRouter.get(
   '/:id/metrics/:metricKey',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const metricResult = await prisma.metricResult.findFirst({
       where: {
         activityId: req.params.id,
@@ -136,7 +136,7 @@ activitiesRouter.get(
 
 activitiesRouter.delete(
   '/:id',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     await deleteActivity(req.params.id);
     res.status(204).send();
   }),

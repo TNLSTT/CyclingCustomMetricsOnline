@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import multer from 'multer';
 
@@ -38,7 +38,7 @@ export const uploadRouter = express.Router();
 uploadRouter.post(
   '/',
   upload.single('file'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const file = req.file;
     if (!file) {
       res.status(400).json({ error: 'FIT file is required.' });

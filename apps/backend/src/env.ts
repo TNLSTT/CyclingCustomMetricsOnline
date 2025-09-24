@@ -6,13 +6,13 @@ const envSchema = z.object({
   PORT: z
     .string()
     .optional()
-    .transform((val) => (val ? Number.parseInt(val, 10) : 4000))
+    .transform((val: string | undefined) => (val ? Number.parseInt(val, 10) : 4000))
     .pipe(z.number().int().min(0)),
   DATABASE_URL: z.string(),
   AUTH_ENABLED: z
     .string()
     .optional()
-    .transform((val) => (val ? val.toLowerCase() === 'true' : false)),
+    .transform((val: string | undefined) => (val ? val.toLowerCase() === 'true' : false)),
   NEXTAUTH_SECRET: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),
   FRONTEND_URL: z.string().optional(),

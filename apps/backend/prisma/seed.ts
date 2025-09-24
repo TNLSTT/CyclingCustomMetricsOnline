@@ -5,7 +5,10 @@ import { metricRegistry } from '../src/metrics/registry.js';
 
 async function main() {
   for (const module of Object.values(metricRegistry)) {
-    const computeConfig = module.definition.computeConfig ?? Prisma.JsonNull;
+    const computeConfig: Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue =
+      module.definition.computeConfig === undefined
+        ? Prisma.JsonNull
+        : (module.definition.computeConfig as Prisma.InputJsonValue);
     await prisma.metricDefinition.upsert({
       where: { key: module.definition.key },
       update: {

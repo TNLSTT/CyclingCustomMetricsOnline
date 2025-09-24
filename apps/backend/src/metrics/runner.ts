@@ -5,15 +5,17 @@ import { logger } from '../logger.js';
 import type { MetricComputationResult, MetricModule, MetricSample } from './types.js';
 import { getMetricModule, metricRegistry } from './registry.js';
 
-function normalizeSeries(series: unknown) {
-  if (series === undefined) {
+function normalizeSeries(
+  series: unknown,
+): Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue {
+  if (series === undefined || series === null) {
     return Prisma.JsonNull;
   }
-  return series as Prisma.JsonValue;
+  return series as Prisma.InputJsonValue;
 }
 
-function normalizeSummary(summary: Record<string, unknown>) {
-  return summary as Prisma.JsonObject;
+function normalizeSummary(summary: Record<string, unknown>): Prisma.InputJsonObject {
+  return summary as Prisma.InputJsonObject;
 }
 
 function selectMetricModules(metricKeys?: string[]): MetricModule[] {
@@ -28,7 +30,10 @@ function selectMetricModules(metricKeys?: string[]): MetricModule[] {
 }
 
 async function ensureDefinition(module: MetricModule) {
-  const computeConfig = module.definition.computeConfig ?? Prisma.JsonNull;
+  const computeConfig: Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue =
+    module.definition.computeConfig === undefined
+      ? Prisma.JsonNull
+      : (module.definition.computeConfig as Prisma.InputJsonValue);
   const definition = await prisma.metricDefinition.upsert({
     where: { key: module.definition.key },
     update: {
