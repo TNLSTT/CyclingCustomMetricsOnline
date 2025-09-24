@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String?    @unique
+  provider  String?
+  createdAt DateTime   @default(now())
+  activities Activity[]
+}
+
+model Activity {
+  id            String           @id @default(cuid())
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id])
+  source        String
+  startTime     DateTime
+  durationSec   Int
+  sampleRateHz  Float?
+  createdAt     DateTime         @default(now())
+  samples       ActivitySample[]
+  metrics       MetricResult[]
+}
+
+model ActivitySample {
+  id         BigInt   @id @default(autoincrement())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  t          Int
+  heartRate  Int?
+  cadence    Int?
+  power      Int?
+  speed      Float?
+  elevation  Float?
+
+  @@index([activityId])
+  @@index([activityId, t])
+}
+
+model MetricDefinition {
+  id            String          @id @default(cuid())
+  key           String          @unique
+  name          String
+  version       Int             @default(1)
+  description   String
+  units         String?
+  computeConfig Json?
+  createdAt     DateTime        @default(now())
+  results       MetricResult[]
+}
+
+model MetricResult {
+  id                  String           @id @default(cuid())
+  activityId          String
+  activity            Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  metricDefinitionId  String
+  metricDefinition    MetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+  summary             Json
+  series              Json?
+  computedAt          DateTime         @default(now())
+
+  @@index([activityId])
+  @@index([metricDefinitionId, activityId])
+  @@unique([activityId, metricDefinitionId])
+}
