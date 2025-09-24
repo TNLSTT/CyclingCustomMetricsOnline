@@ -1,0 +1,16 @@
+{
+  "name": "cycling-custom-metrics",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter web dev\"",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:push": "pnpm --filter backend db:push",
+    "db:migrate": "pnpm --filter backend db:migrate",
+    "seed": "pnpm --filter backend seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
