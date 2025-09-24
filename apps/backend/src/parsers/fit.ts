@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
-
-import FitParser from 'fit-file-parser';
+import * as FitParserPkg from 'fit-file-parser';
 
 import type { NormalizedActivity, NormalizedActivitySample } from '../types.js';
+
+const FitParser = (FitParserPkg as any);
 
 const parser = new FitParser({
   force: true,
