@@ -1,8 +1,7 @@
 import Link from 'next/link';
 
 import { LandingUpload } from '../components/landing-upload';
-import { buttonVariants } from '../components/ui/button';
-import { cn } from '../lib/utils';
+import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 
 const features = [
@@ -34,18 +33,12 @@ export default function HomePage() {
             extensions without touching the core ingestion pipeline.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/activities"
-              className={cn(buttonVariants({ variant: 'default' }))}
-            >
-              View activities
-            </Link>
-            <Link
-              href="/metrics"
-              className={cn(buttonVariants({ variant: 'secondary' }))}
-            >
-              Browse metric registry
-            </Link>
+            <Button asChild>
+              <Link href="/activities">View activities</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/metrics">Browse metric registry</Link>
+            </Button>
           </div>
         </div>
         <LandingUpload />
