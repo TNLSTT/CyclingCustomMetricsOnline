@@ -1,43 +1,35 @@
 import Link from 'next/link';
 
-import { fetchActivities } from '../../lib/api';
+import { env } from '../../lib/env';
 import { formatDuration } from '../../lib/utils';
-import type { ActivitySummary } from '../../types/activity';
+import type { PaginatedActivities } from '../../types/activity';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 
-async function loadActivities(): Promise<{ activities: ActivitySummary[]; error: string | null }> {
-  try {
-    const { data } = await fetchActivities(1, 50);
-    return { activities: data, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error while fetching activities.';
-    return { activities: [], error: message };
+async function getActivities(): Promise<PaginatedActivities> {
+  const response = await fetch(`${env.internalApiUrl}/activities?page=1&pageSize=50`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to load activities');
   }
+  return (await response.json()) as PaginatedActivities;
 }
 
 export default async function ActivitiesPage() {
-  const { activities, error } = await loadActivities();
+  try {
+    const { data: activities } = await getActivities();
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Activities</h1>
-        <p className="text-muted-foreground">
-          Recently uploaded FIT rides with computed metric summaries.
-        </p>
-      </div>
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Unable to load activities</AlertTitle>
-          <AlertDescription>
-            {error}. Ensure the backend API is running and the database has been migrated{' '}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm db:push</code>.
-          </AlertDescription>
-        </Alert>
-      ) : (
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Activities</h1>
+          <p className="text-muted-foreground">
+            Recently uploaded FIT rides with computed metric summaries.
+          </p>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold">Activity history</CardTitle>
@@ -70,7 +62,9 @@ export default async function ActivitiesPage() {
                         {activity.metrics.length === 0 ? (
                           <Badge variant="outline">Pending</Badge>
                         ) : (
-                          activity.metrics.map((metric) => <Badge key={metric.key}>{metric.key}</Badge>)
+                          activity.metrics.map((metric) => (
+                            <Badge key={metric.key}>{metric.key}</Badge>
+                          ))
                         )}
                       </TableCell>
                       <TableCell className="text-right">
@@ -85,7 +79,18 @@ export default async function ActivitiesPage() {
             </Table>
           </CardContent>
         </Card>
-      )}
-    </div>
-  );
+      </div>
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error while fetching activities.';
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load activities</AlertTitle>
+        <AlertDescription>
+          {message}. Ensure the backend API is running and the database has been migrated{' '}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm db:push</code>.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 }
