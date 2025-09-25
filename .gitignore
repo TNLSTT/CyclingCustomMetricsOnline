@@ -7,3 +7,6 @@ node_modules
 coverage
 .DS_Store
 prisma/dev.db
+
+.env
+apps/backend/.env
