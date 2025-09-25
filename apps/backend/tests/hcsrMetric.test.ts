@@ -43,12 +43,15 @@ describe('hcsrMetric', () => {
       createdAt: new Date(),
     } as const;
 
-    const result = hcsrMetric.compute(samples, { activity });
+    const computation = hcsrMetric.compute(samples, { activity });
+    if (computation instanceof Promise) {
+      throw new Error('hcsrMetric.compute should resolve synchronously during this test');
+    }
 
-    expect(result.summary.slope_bpm_per_rpm).toBeDefined();
-    expect(result.summary.slope_bpm_per_rpm).toBeGreaterThan(0.4);
-    expect(result.summary.r2).toBeGreaterThan(0.9);
-    expect(result.summary.bucket_count).toBe(4);
-    expect(Array.isArray(result.series)).toBe(true);
+    expect(computation.summary.slope_bpm_per_rpm).toBeDefined();
+    expect(computation.summary.slope_bpm_per_rpm).toBeGreaterThan(0.4);
+    expect(computation.summary.r2).toBeGreaterThan(0.9);
+    expect(computation.summary.bucket_count).toBe(4);
+    expect(Array.isArray(computation.series)).toBe(true);
   });
 });

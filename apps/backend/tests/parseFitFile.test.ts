@@ -1,13 +1,20 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { parseFitFile } from '../src/parsers/fit.js';
 
 let mockRecords: any[] = [];
+let parserBehavior: ((callback: (error: unknown, data: any) => void) => void) | null = null;
 
 vi.mock('fit-file-parser', () => {
   return {
     default: class FitParser {
       parse(_buffer: Buffer, callback: (error: unknown, data: any) => void) {
+        if (parserBehavior) {
+          parserBehavior(callback);
+          return;
+        }
+
+        callback('File to small to be a FIT file', {});
         callback(null, { records: mockRecords });
       }
     },
@@ -45,6 +52,7 @@ describe('parseFitFile', () => {
         enhanced_altitude: 103,
       },
     ];
+    parserBehavior = null;
   });
 
   it('normalizes samples to a 1Hz grid with forward fill on small gaps', async () => {
@@ -57,5 +65,15 @@ describe('parseFitFile', () => {
     expect(activity.samples[2].heartRate).toBe(activity.samples[1].heartRate);
     expect(activity.samples[3].heartRate).toBe(activity.samples[1].heartRate);
     expect(activity.durationSec).toBe(4);
+  });
+
+  it('throws a friendly error when the parser returns no data object', async () => {
+    parserBehavior = (callback) => {
+      callback(null, undefined);
+    };
+
+    await expect(parseFitFile(fixturePath)).rejects.toThrow(
+      'FIT file has no timestamped records.',
+    );
   });
 });
