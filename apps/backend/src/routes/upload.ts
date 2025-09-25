@@ -13,7 +13,7 @@ const storage = multer.diskStorage({
     fs
       .mkdir(env.UPLOAD_DIR, { recursive: true })
       .then(() => cb(null, env.UPLOAD_DIR))
-      .catch((error: unknown) => cb(error as Error));
+      .catch((error: unknown) => cb(error as Error, env.UPLOAD_DIR));
   },
   filename: (_req, file, cb) => {
     const safeName = file.originalname.toLowerCase().replace(/[^a-z0-9_.-]+/g, '-');

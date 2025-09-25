@@ -1,11 +1,10 @@
-import { Prisma } from '@prisma/client';
-
 import { prisma } from '../src/prisma.js';
 import { metricRegistry } from '../src/metrics/registry.js';
+import { normalizeNullableJson } from '../src/utils/prismaJson.js';
 
 async function main() {
   for (const module of Object.values(metricRegistry)) {
-    const computeConfig = module.definition.computeConfig ?? Prisma.JsonNull;
+    const computeConfig = normalizeNullableJson(module.definition.computeConfig);
     await prisma.metricDefinition.upsert({
       where: { key: module.definition.key },
       update: {
