@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import * as FitParserPkg from 'fit-file-parser';
 
 import type { NormalizedActivity, NormalizedActivitySample } from '../types.js';
+import { logger } from '../logger.js';
 
 type FitRecord = {
   timestamp?: Date | string;
@@ -13,10 +14,12 @@ type FitRecord = {
   altitude?: number;
 };
 
+type FitParserCallbackData = { records?: FitRecord[] };
+
 type FitParserInstance = {
   parse: (
     fileBuffer: Buffer,
-    callback: (error: unknown, data: { records?: FitRecord[] }) => void,
+    callback: (error: unknown, data: FitParserCallbackData) => void,
   ) => void;
 };
 
@@ -47,6 +50,40 @@ const parser = new FitParser({
   speedUnit: 'm/s',
   lengthUnit: 'm',
 });
+
+async function parseFitBuffer(fileBuffer: Buffer): Promise<{
+  data: FitParserCallbackData;
+  warnings: string[];
+}> {
+  const warnings: string[] = [];
+
+  const data = await new Promise<FitParserCallbackData>((resolve, reject) => {
+    parser.parse(fileBuffer, (error: unknown, parsed: FitParserCallbackData) => {
+      if (error) {
+        if (typeof error === 'string') {
+          // fit-file-parser sometimes returns string errors that are effectively warnings
+          warnings.push(error);
+          return;
+        }
+        reject(error);
+        return;
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        resolve({});
+        return;
+      }
+
+      resolve(parsed);
+    });
+  });
+
+  if (warnings.length > 0) {
+    logger.debug({ warnings }, 'FIT parser reported warnings while ingesting file');
+  }
+
+  return { data, warnings };
+}
 
 function sanitizeInt(value: unknown, min: number, max: number): number | null {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -82,17 +119,9 @@ function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedAct
 export async function parseFitFile(filePath: string): Promise<NormalizedActivity> {
   const fileBuffer = await fs.readFile(filePath);
 
-  const result = await new Promise<{ records?: FitRecord[] }>((resolve, reject) => {
-    parser.parse(fileBuffer, (error: unknown, data: { records?: FitRecord[] }) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(data);
-    });
-  });
+  const { data } = await parseFitBuffer(fileBuffer);
 
-  const records = (result.records ?? []).filter((record) => record.timestamp);
+  const records = (data.records ?? []).filter((record) => record.timestamp);
 
   if (records.length === 0) {
     throw new Error('FIT file has no timestamped records.');

@@ -4,17 +4,7 @@ import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
 import type { MetricComputationResult, MetricModule, MetricSample } from './types.js';
 import { getMetricModule, metricRegistry } from './registry.js';
-
-function normalizeSeries(series: unknown) {
-  if (series === undefined) {
-    return Prisma.JsonNull;
-  }
-  return series as Prisma.JsonValue;
-}
-
-function normalizeSummary(summary: Record<string, unknown>) {
-  return summary as Prisma.JsonObject;
-}
+import { normalizeNullableJson, normalizeSummaryJson } from '../utils/prismaJson.js';
 
 function selectMetricModules(metricKeys?: string[]): MetricModule[] {
   const keys = metricKeys ?? Object.keys(metricRegistry);
@@ -28,7 +18,7 @@ function selectMetricModules(metricKeys?: string[]): MetricModule[] {
 }
 
 async function ensureDefinition(module: MetricModule) {
-  const computeConfig = module.definition.computeConfig ?? Prisma.JsonNull;
+  const computeConfig = normalizeNullableJson(module.definition.computeConfig);
   const definition = await prisma.metricDefinition.upsert({
     where: { key: module.definition.key },
     update: {
@@ -91,16 +81,16 @@ export async function runMetrics(activityId: string, metricKeys?: string[]) {
             metricDefinitionId: definition.id,
           },
         },
-        update: {
-          summary: normalizeSummary(computation.summary),
-          series: normalizeSeries(computation.series ?? null),
+      update: {
+          summary: normalizeSummaryJson(computation.summary),
+          series: normalizeNullableJson(computation.series ?? null),
           computedAt: new Date(),
         },
         create: {
           activityId,
           metricDefinitionId: definition.id,
-          summary: normalizeSummary(computation.summary),
-          series: normalizeSeries(computation.series ?? null),
+          summary: normalizeSummaryJson(computation.summary),
+          series: normalizeNullableJson(computation.series ?? null),
         },
       });
       results[module.definition.key] = computation;
