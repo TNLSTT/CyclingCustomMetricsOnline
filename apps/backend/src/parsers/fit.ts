@@ -69,6 +69,11 @@ async function parseFitBuffer(fileBuffer: Buffer): Promise<{
         return;
       }
 
+      if (!parsed || typeof parsed !== 'object') {
+        resolve({});
+        return;
+      }
+
       resolve(parsed);
     });
   });
