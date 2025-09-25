@@ -10,3 +10,4 @@ prisma/dev.db
 
 .env
 apps/backend/.env
+apps/backend/uploads/
