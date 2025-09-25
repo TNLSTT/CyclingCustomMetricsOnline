@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
+import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -124,23 +125,7 @@ activitiesRouter.get(
     }
 
     const summary = metricResult.summary as Record<string, unknown>;
-    const rawSeries = Array.isArray(metricResult.series)
-      ? (metricResult.series as unknown[])
-      : [];
-    const intervals = rawSeries
-      .filter((entry): entry is Record<string, unknown> => {
-        return typeof entry === 'object' && entry !== null;
-      })
-      .map((entry) => ({
-        interval: typeof entry.interval === 'number' ? entry.interval : null,
-        avg_power:
-          typeof entry.avg_power === 'number' ? entry.avg_power : null,
-        avg_hr: typeof entry.avg_hr === 'number' ? entry.avg_hr : null,
-        avg_cadence:
-          typeof entry.avg_cadence === 'number' ? entry.avg_cadence : null,
-        avg_temp: typeof entry.avg_temp === 'number' ? entry.avg_temp : null,
-        w_per_hr: typeof entry.w_per_hr === 'number' ? entry.w_per_hr : null,
-      }));
+    const intervals = normalizeIntervalEfficiencySeries(metricResult.series);
 
     res.json({
       intervals,

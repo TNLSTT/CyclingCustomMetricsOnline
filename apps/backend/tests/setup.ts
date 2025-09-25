@@ -238,6 +238,46 @@ function createPrismaMock(): PrismaMock {
         db.metricResults.set(key, record);
         return { ...record };
       },
+      findMany: async ({ where, include, orderBy }: any) => {
+        const targetKey = where?.metricDefinition?.key;
+        let matchingResults = Array.from(db.metricResults.values());
+
+        if (typeof targetKey === 'string') {
+          const definition = Array.from(db.metricDefinitions.values()).find(
+            (def) => def.key === targetKey,
+          );
+          if (!definition) {
+            return [];
+          }
+          matchingResults = matchingResults.filter(
+            (result) => result.metricDefinitionId === definition.id,
+          );
+        }
+
+        if (orderBy?.activity?.startTime) {
+          const direction = orderBy.activity.startTime;
+          matchingResults.sort((a, b) => {
+            const activityA = db.activities.get(a.activityId);
+            const activityB = db.activities.get(b.activityId);
+            const timeA = activityA?.startTime?.getTime() ?? 0;
+            const timeB = activityB?.startTime?.getTime() ?? 0;
+            return direction === 'asc' ? timeA - timeB : timeB - timeA;
+          });
+        }
+
+        return matchingResults.map((result) => {
+          const base: any = { ...result };
+          if (include?.metricDefinition) {
+            const definition = db.metricDefinitions.get(result.metricDefinitionId);
+            base.metricDefinition = definition ? { ...definition } : undefined;
+          }
+          if (include?.activity) {
+            const activity = db.activities.get(result.activityId);
+            base.activity = activity ? { ...activity } : undefined;
+          }
+          return base;
+        });
+      },
       findFirst: async ({ where, include }: any) => {
         const definition = Array.from(db.metricDefinitions.values()).find(
           (def) => def.key === where.metricDefinition.key,

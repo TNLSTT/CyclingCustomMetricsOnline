@@ -64,6 +64,15 @@ type IntervalSummary = {
   w_per_hr: number | null;
 };
 
+export type IntervalEfficiencyInterval = {
+  interval: number | null;
+  avg_power: number | null;
+  avg_hr: number | null;
+  avg_cadence: number | null;
+  avg_temp: number | null;
+  w_per_hr: number | null;
+};
+
 function finalizeInterval(index: number, acc: IntervalAccumulator): IntervalSummary {
   const avgPowerRaw = average(acc.powerSum, acc.powerCount);
   const avgHrRaw = average(acc.heartRateSum, acc.heartRateCount);
@@ -132,3 +141,22 @@ export const intervalEfficiencyMetric: MetricModule = {
     };
   },
 };
+
+export function normalizeIntervalEfficiencySeries(series: unknown): IntervalEfficiencyInterval[] {
+  if (!Array.isArray(series)) {
+    return [];
+  }
+
+  return series
+    .filter((entry): entry is Record<string, unknown> => {
+      return typeof entry === 'object' && entry !== null;
+    })
+    .map((entry) => ({
+      interval: typeof entry.interval === 'number' ? entry.interval : null,
+      avg_power: typeof entry.avg_power === 'number' ? entry.avg_power : null,
+      avg_hr: typeof entry.avg_hr === 'number' ? entry.avg_hr : null,
+      avg_cadence: typeof entry.avg_cadence === 'number' ? entry.avg_cadence : null,
+      avg_temp: typeof entry.avg_temp === 'number' ? entry.avg_temp : null,
+      w_per_hr: typeof entry.w_per_hr === 'number' ? entry.w_per_hr : null,
+    }));
+}

@@ -38,8 +38,19 @@ export interface MetricResultDetail {
   computedAt: string;
 }
 
-export interface UploadResponse {
+export interface UploadSuccess {
   activityId: string;
+  fileName: string;
+}
+
+export interface UploadFailure {
+  fileName: string;
+  error: string;
+}
+
+export interface UploadResponse {
+  uploads: UploadSuccess[];
+  failures: UploadFailure[];
 }
 
 export interface ComputeMetricsResponse {
@@ -60,4 +71,27 @@ export interface IntervalEfficiencyResponse {
   intervals: IntervalEfficiencyInterval[];
   intervalSeconds: number;
   computedAt: string;
+}
+
+export interface IntervalEfficiencyHistoryPoint {
+  activityId: string;
+  activityStartTime: string;
+  activityDurationSec: number;
+  computedAt: string;
+  intervalCount: number;
+  averageWPerHr: number | null;
+  firstIntervalWPerHr: number | null;
+  lastIntervalWPerHr: number | null;
+  intervals: IntervalEfficiencyInterval[];
+}
+
+export interface IntervalEfficiencyHistoryResponse {
+  metric: {
+    key: string;
+    name: string;
+    description: string;
+    units?: string | null;
+  };
+  intervalSeconds: number;
+  points: IntervalEfficiencyHistoryPoint[];
 }

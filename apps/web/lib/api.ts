@@ -7,6 +7,7 @@ import type {
   PaginatedActivities,
   UploadResponse,
   IntervalEfficiencyResponse,
+  IntervalEfficiencyHistoryResponse,
 } from '../types/activity';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,9 +36,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function uploadFitFile(file: File) {
+export async function uploadFitFiles(files: File[]) {
   const formData = new FormData();
-  formData.append('file', file);
+  files.forEach((file) => formData.append('files', file));
   return apiFetch<UploadResponse>('/upload', {
     method: 'POST',
     body: formData,
@@ -67,6 +68,12 @@ export async function fetchMetricResult(activityId: string, metricKey: string) {
 export async function fetchIntervalEfficiency(activityId: string) {
   return apiFetch<IntervalEfficiencyResponse>(
     `/activities/${activityId}/metrics/interval-efficiency`,
+  );
+}
+
+export async function fetchIntervalEfficiencyHistory() {
+  return apiFetch<IntervalEfficiencyHistoryResponse>(
+    '/metrics/interval-efficiency/history',
   );
 }
 
