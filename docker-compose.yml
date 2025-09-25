@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: cyclingmetrics
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"   # expose postgres to host
   backend:
     build:
       context: .
@@ -26,7 +28,7 @@ services:
     volumes:
       - backend-uploads:/data/uploads
     ports:
-      - '4000:4000'
+      - "4000:4000"
   web:
     build:
       context: .
@@ -41,7 +43,8 @@ services:
       NEXTAUTH_SECRET: change-me
       NEXTAUTH_URL: http://localhost:3000
     ports:
-      - '3000:3000'
+      - "3000:3000"
+
 volumes:
   postgres-data:
   backend-uploads:

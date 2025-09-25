@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import * as FitParserPkg from 'fit-file-parser';
+import FitParserPkg from 'fit-file-parser';
 
 import type { NormalizedActivity, NormalizedActivitySample } from '../types.js';
 import { logger } from '../logger.js';
