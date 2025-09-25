@@ -8,6 +8,7 @@ vi.mock('fit-file-parser', () => {
   return {
     default: class FitParser {
       parse(_buffer: Buffer, callback: (error: unknown, data: any) => void) {
+        callback('File to small to be a FIT file', {});
         callback(null, { records: mockRecords });
       }
     },

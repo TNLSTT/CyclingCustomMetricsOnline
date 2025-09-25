@@ -10,7 +10,10 @@ import { ingestFitFile } from '../services/ingestService.js';
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, env.UPLOAD_DIR);
+    fs
+      .mkdir(env.UPLOAD_DIR, { recursive: true })
+      .then(() => cb(null, env.UPLOAD_DIR))
+      .catch((error: unknown) => cb(error as Error));
   },
   filename: (_req, file, cb) => {
     const safeName = file.originalname.toLowerCase().replace(/[^a-z0-9_.-]+/g, '-');

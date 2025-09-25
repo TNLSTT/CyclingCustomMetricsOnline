@@ -2,15 +2,7 @@ import fs from 'node:fs/promises';
 import * as FitParserPkg from 'fit-file-parser';
 
 import type { NormalizedActivity, NormalizedActivitySample } from '../types.js';
-
-const FitParser = (FitParserPkg as any);
-
-const parser = new FitParser({
-  force: true,
-  elapsedRecordField: true,
-  speedUnit: 'm/s',
-  lengthUnit: 'm',
-});
+import { logger } from '../logger.js';
 
 type FitRecord = {
   timestamp?: Date | string;
@@ -21,6 +13,72 @@ type FitRecord = {
   enhanced_altitude?: number;
   altitude?: number;
 };
+
+type FitParserCallbackData = { records?: FitRecord[] };
+
+type FitParserInstance = {
+  parse: (
+    fileBuffer: Buffer,
+    callback: (error: unknown, data: { records?: FitRecord[] }) => void,
+  ) => void;
+};
+
+type FitParserConstructor = new (options: Record<string, unknown>) => FitParserInstance;
+
+function resolveFitParserConstructor(module: unknown): FitParserConstructor {
+  if (typeof module === 'function') {
+    return module as FitParserConstructor;
+  }
+
+  if (
+    module &&
+    typeof module === 'object' &&
+    'default' in module &&
+    typeof (module as { default: unknown }).default === 'function'
+  ) {
+    return (module as { default: FitParserConstructor }).default;
+  }
+
+  throw new TypeError('Invalid fit-file-parser export shape.');
+}
+
+const FitParser = resolveFitParserConstructor(FitParserPkg);
+
+const parser = new FitParser({
+  force: true,
+  elapsedRecordField: true,
+  speedUnit: 'm/s',
+  lengthUnit: 'm',
+});
+
+async function parseFitBuffer(fileBuffer: Buffer): Promise<{
+  data: FitParserCallbackData;
+  warnings: string[];
+}> {
+  const warnings: string[] = [];
+
+  const data = await new Promise<FitParserCallbackData>((resolve, reject) => {
+    parser.parse(fileBuffer, (error: unknown, parsed: FitParserCallbackData) => {
+      if (error) {
+        if (typeof error === 'string') {
+          warnings.push(error);
+          return;
+        }
+
+        reject(error);
+        return;
+      }
+
+      resolve(parsed);
+    });
+  });
+
+  if (warnings.length > 0) {
+    logger.debug({ warnings }, 'FIT parser reported warnings while ingesting file');
+  }
+
+  return { data, warnings };
+}
 
 function sanitizeInt(value: unknown, min: number, max: number): number | null {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -56,17 +114,9 @@ function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedAct
 export async function parseFitFile(filePath: string): Promise<NormalizedActivity> {
   const fileBuffer = await fs.readFile(filePath);
 
-  const result = await new Promise<{ records?: FitRecord[] }>((resolve, reject) => {
-    parser.parse(fileBuffer, (error: unknown, data: { records?: FitRecord[] }) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(data);
-    });
-  });
+  const { data } = await parseFitBuffer(fileBuffer);
 
-  const records = (result.records ?? []).filter((record) => record.timestamp);
+  const records = (data.records ?? []).filter((record) => record.timestamp);
 
   if (records.length === 0) {
     throw new Error('FIT file has no timestamped records.');
