@@ -56,19 +56,23 @@ uploadRouter.post(
     const failures: Array<{ fileName: string; error: string }> = [];
 
     for (const file of fitFiles) {
+      const filePath = file.path;
       try {
-        const { activity } = await ingestFitFile(file.path);
+        const { activity } = await ingestFitFile(filePath);
         uploads.push({ activityId: activity.id, fileName: file.originalname });
       } catch (error) {
         failures.push({
           fileName: file.originalname,
           error: error instanceof Error ? error.message : 'Failed to ingest FIT file.',
         });
-
+      } finally {
         try {
-          await fs.unlink(file.path);
+          await fs.unlink(filePath);
         } catch (cleanupError) {
-          logger.warn({ cleanupError }, 'Failed to remove uploaded file after error');
+          const nodeError = cleanupError as NodeJS.ErrnoException;
+          if (nodeError?.code !== 'ENOENT') {
+            logger.warn({ cleanupError }, 'Failed to remove uploaded file after processing');
+          }
         }
       }
     }

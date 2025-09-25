@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,11 +52,15 @@ const app = createApp();
 const fixturePath = new URL('./fixtures/mock.fit', import.meta.url).pathname;
 
 describe('Activities API flow', () => {
+  let unlinkSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    unlinkSpy = vi.spyOn(fs, 'unlink').mockResolvedValue();
   });
 
   afterEach(() => {
+    unlinkSpy.mockRestore();
     vi.clearAllMocks();
   });
 
@@ -102,5 +108,7 @@ describe('Activities API flow', () => {
     expect(historyResponse.status).toBe(200);
     expect(Array.isArray(historyResponse.body.points)).toBe(true);
     expect(historyResponse.body.points.length).toBeGreaterThan(0);
+
+    expect(unlinkSpy).toHaveBeenCalledTimes(2);
   });
 });
