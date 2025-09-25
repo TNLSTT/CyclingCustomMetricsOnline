@@ -19,7 +19,7 @@ type FitParserCallbackData = { records?: FitRecord[] };
 type FitParserInstance = {
   parse: (
     fileBuffer: Buffer,
-    callback: (error: unknown, data: { records?: FitRecord[] }) => void,
+    callback: (error: unknown, data: FitParserCallbackData) => void,
   ) => void;
 };
 
@@ -61,10 +61,10 @@ async function parseFitBuffer(fileBuffer: Buffer): Promise<{
     parser.parse(fileBuffer, (error: unknown, parsed: FitParserCallbackData) => {
       if (error) {
         if (typeof error === 'string') {
+          // fit-file-parser sometimes returns string errors that are effectively warnings
           warnings.push(error);
           return;
         }
-
         reject(error);
         return;
       }
