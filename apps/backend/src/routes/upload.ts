@@ -40,24 +40,40 @@ export const uploadRouter = express.Router();
 
 uploadRouter.post(
   '/',
-  upload.single('file'),
+  upload.any(),
   asyncHandler(async (req, res) => {
-    const file = req.file;
-    if (!file) {
-      res.status(400).json({ error: 'FIT file is required.' });
+    const uploadedFiles = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
+    const fitFiles = uploadedFiles.filter((file) =>
+      ['file', 'files'].includes(file.fieldname.toLowerCase()),
+    );
+
+    if (fitFiles.length === 0) {
+      res.status(400).json({ error: 'At least one FIT file is required.' });
       return;
     }
 
-    try {
-      const { activity } = await ingestFitFile(file.path);
-      res.status(201).json({ activityId: activity.id });
-    } catch (error) {
+    const uploads: Array<{ activityId: string; fileName: string }> = [];
+    const failures: Array<{ fileName: string; error: string }> = [];
+
+    for (const file of fitFiles) {
       try {
-        await fs.unlink(file.path);
-      } catch (cleanupError) {
-        logger.warn({ cleanupError }, 'Failed to remove uploaded file after error');
+        const { activity } = await ingestFitFile(file.path);
+        uploads.push({ activityId: activity.id, fileName: file.originalname });
+      } catch (error) {
+        failures.push({
+          fileName: file.originalname,
+          error: error instanceof Error ? error.message : 'Failed to ingest FIT file.',
+        });
+
+        try {
+          await fs.unlink(file.path);
+        } catch (cleanupError) {
+          logger.warn({ cleanupError }, 'Failed to remove uploaded file after error');
+        }
       }
-      throw error;
     }
+
+    const statusCode = uploads.length > 0 ? 201 : 400;
+    res.status(statusCode).json({ uploads, failures });
   }),
 );

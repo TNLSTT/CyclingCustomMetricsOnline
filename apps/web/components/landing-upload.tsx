@@ -9,8 +9,12 @@ export function LandingUpload() {
 
   return (
     <FileUpload
-      onUploaded={(activityId) => {
-        router.push(`/activities/${activityId}`);
+      onUploaded={(activityIds) => {
+        if (activityIds.length === 1) {
+          router.push(`/activities/${activityIds[0]}`);
+          return;
+        }
+        router.push('/activities');
       }}
     />
   );

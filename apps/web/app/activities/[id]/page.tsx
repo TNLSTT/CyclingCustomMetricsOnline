@@ -2,7 +2,11 @@ import { notFound } from 'next/navigation';
 
 import { ActivityDetailClient } from '../../../components/activity-detail-client';
 import { env } from '../../../lib/env';
-import type { ActivitySummary, MetricResultDetail } from '../../../types/activity';
+import type {
+  ActivitySummary,
+  IntervalEfficiencyResponse,
+  MetricResultDetail,
+} from '../../../types/activity';
 
 async function getActivity(id: string): Promise<ActivitySummary> {
   const response = await fetch(`${env.internalApiUrl}/activities/${id}`, {
@@ -30,6 +34,24 @@ async function getHcsrMetric(id: string): Promise<MetricResultDetail | null> {
   return (await response.json()) as MetricResultDetail;
 }
 
+async function getIntervalEfficiency(
+  id: string,
+): Promise<IntervalEfficiencyResponse | null> {
+  const response = await fetch(
+    `${env.internalApiUrl}/activities/${id}/metrics/interval-efficiency`,
+    {
+      cache: 'no-store',
+    },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('Failed to load interval efficiency metric');
+  }
+  return (await response.json()) as IntervalEfficiencyResponse;
+}
+
 export default async function ActivityDetailPage({
   params,
 }: {
@@ -37,6 +59,13 @@ export default async function ActivityDetailPage({
 }) {
   const activity = await getActivity(params.id);
   const hcsr = await getHcsrMetric(params.id);
+  const intervalEfficiency = await getIntervalEfficiency(params.id);
 
-  return <ActivityDetailClient activity={activity} initialHcsr={hcsr} />;
+  return (
+    <ActivityDetailClient
+      activity={activity}
+      initialHcsr={hcsr}
+      initialIntervalEfficiency={intervalEfficiency}
+    />
+  );
 }

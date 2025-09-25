@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
+import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -105,6 +106,35 @@ activitiesRouter.post(
 
     const results = await runMetrics(req.params.id, metricKeys ?? undefined);
     res.json({ activityId: req.params.id, results });
+  }),
+);
+
+activitiesRouter.get(
+  '/:id/metrics/interval-efficiency',
+  asyncHandler(async (req, res) => {
+    const metricResult = await prisma.metricResult.findFirst({
+      where: {
+        activityId: req.params.id,
+        metricDefinition: { key: 'interval-efficiency' },
+      },
+    });
+
+    if (!metricResult) {
+      res.status(404).json({ error: 'Metric result not found' });
+      return;
+    }
+
+    const summary = metricResult.summary as Record<string, unknown>;
+    const intervals = normalizeIntervalEfficiencySeries(metricResult.series);
+
+    res.json({
+      intervals,
+      intervalSeconds:
+        typeof summary.interval_seconds === 'number'
+          ? summary.interval_seconds
+          : 3600,
+      computedAt: metricResult.computedAt,
+    });
   }),
 );
 

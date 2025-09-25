@@ -40,7 +40,15 @@ async function ensureDefinition(module: MetricModule) {
   return definition;
 }
 
-function mapSamples(samples: { t: number; heartRate: number | null; cadence: number | null; power: number | null; speed: number | null; elevation: number | null }[]): MetricSample[] {
+function mapSamples(samples: {
+  t: number;
+  heartRate: number | null;
+  cadence: number | null;
+  power: number | null;
+  speed: number | null;
+  elevation: number | null;
+  temperature: number | null;
+}[]): MetricSample[] {
   return samples.map((sample) => ({
     t: sample.t,
     heartRate: sample.heartRate,
@@ -48,6 +56,7 @@ function mapSamples(samples: { t: number; heartRate: number | null; cadence: num
     power: sample.power,
     speed: sample.speed,
     elevation: sample.elevation,
+    temperature: sample.temperature,
   }));
 }
 

@@ -33,6 +33,7 @@ function buildSampleRows(
     power: sample.power ?? null,
     speed: sample.speed ?? null,
     elevation: sample.elevation ?? null,
+    temperature: sample.temperature ?? null,
   }));
 }
 
