@@ -34,6 +34,7 @@ describe('parseFitFile', () => {
         power: 200,
         speed: 8,
         enhanced_altitude: 100,
+        temperature: 25,
       },
       {
         timestamp: new Date(base.getTime() + 1000),
@@ -42,6 +43,7 @@ describe('parseFitFile', () => {
         power: 210,
         speed: 8.2,
         enhanced_altitude: 101,
+        temperature: 25.5,
       },
       {
         timestamp: new Date(base.getTime() + 4000),
@@ -50,6 +52,7 @@ describe('parseFitFile', () => {
         power: 230,
         speed: 8.5,
         enhanced_altitude: 103,
+        temperature: 26,
       },
     ];
     parserBehavior = null;
@@ -64,6 +67,8 @@ describe('parseFitFile', () => {
     expect(activity.samples[4].t).toBe(4);
     expect(activity.samples[2].heartRate).toBe(activity.samples[1].heartRate);
     expect(activity.samples[3].heartRate).toBe(activity.samples[1].heartRate);
+    expect(activity.samples[0].temperature).toBeCloseTo(25);
+    expect(activity.samples[2].temperature).toBe(activity.samples[1].temperature);
     expect(activity.durationSec).toBe(4);
   });
 

@@ -109,6 +109,51 @@ activitiesRouter.post(
 );
 
 activitiesRouter.get(
+  '/:id/metrics/interval-efficiency',
+  asyncHandler(async (req, res) => {
+    const metricResult = await prisma.metricResult.findFirst({
+      where: {
+        activityId: req.params.id,
+        metricDefinition: { key: 'interval-efficiency' },
+      },
+    });
+
+    if (!metricResult) {
+      res.status(404).json({ error: 'Metric result not found' });
+      return;
+    }
+
+    const summary = metricResult.summary as Record<string, unknown>;
+    const rawSeries = Array.isArray(metricResult.series)
+      ? (metricResult.series as unknown[])
+      : [];
+    const intervals = rawSeries
+      .filter((entry): entry is Record<string, unknown> => {
+        return typeof entry === 'object' && entry !== null;
+      })
+      .map((entry) => ({
+        interval: typeof entry.interval === 'number' ? entry.interval : null,
+        avg_power:
+          typeof entry.avg_power === 'number' ? entry.avg_power : null,
+        avg_hr: typeof entry.avg_hr === 'number' ? entry.avg_hr : null,
+        avg_cadence:
+          typeof entry.avg_cadence === 'number' ? entry.avg_cadence : null,
+        avg_temp: typeof entry.avg_temp === 'number' ? entry.avg_temp : null,
+        w_per_hr: typeof entry.w_per_hr === 'number' ? entry.w_per_hr : null,
+      }));
+
+    res.json({
+      intervals,
+      intervalSeconds:
+        typeof summary.interval_seconds === 'number'
+          ? summary.interval_seconds
+          : 3600,
+      computedAt: metricResult.computedAt,
+    });
+  }),
+);
+
+activitiesRouter.get(
   '/:id/metrics/:metricKey',
   asyncHandler(async (req, res) => {
     const metricResult = await prisma.metricResult.findFirst({

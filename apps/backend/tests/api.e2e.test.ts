@@ -19,9 +19,10 @@ function buildNormalizedActivity(): NormalizedActivity {
         t,
         cadence: bucket.cadence,
         heartRate: bucket.heartRate + (i % 3),
-        power: null,
+        power: 200 + bucket.cadence / 2 + (i % 5),
         speed: null,
         elevation: null,
+        temperature: 25 + bucket.cadence / 100,
       });
       t += 1;
     }
@@ -72,6 +73,7 @@ describe('Activities API flow', () => {
 
     expect(computeResponse.status).toBe(200);
     expect(computeResponse.body.results.hcsr).toBeDefined();
+    expect(computeResponse.body.results['interval-efficiency']).toBeDefined();
 
     const detailResponse = await request(app).get(`/api/activities/${activityId}`);
     expect(detailResponse.status).toBe(200);
@@ -83,5 +85,12 @@ describe('Activities API flow', () => {
     expect(metricResponse.status).toBe(200);
     expect(metricResponse.body.summary.slope_bpm_per_rpm).toBeGreaterThan(0);
     expect(Array.isArray(metricResponse.body.series)).toBe(true);
+
+    const intervalResponse = await request(app).get(
+      `/api/activities/${activityId}/metrics/interval-efficiency`,
+    );
+    expect(intervalResponse.status).toBe(200);
+    expect(Array.isArray(intervalResponse.body.intervals)).toBe(true);
+    expect(intervalResponse.body.intervals.length).toBeGreaterThan(0);
   });
 });

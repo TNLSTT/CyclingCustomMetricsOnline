@@ -46,3 +46,18 @@ export interface ComputeMetricsResponse {
   activityId: string;
   results: Record<string, unknown>;
 }
+
+export interface IntervalEfficiencyInterval {
+  interval: number | null;
+  avg_power: number | null;
+  avg_hr: number | null;
+  avg_cadence: number | null;
+  avg_temp: number | null;
+  w_per_hr: number | null;
+}
+
+export interface IntervalEfficiencyResponse {
+  intervals: IntervalEfficiencyInterval[];
+  intervalSeconds: number;
+  computedAt: string;
+}

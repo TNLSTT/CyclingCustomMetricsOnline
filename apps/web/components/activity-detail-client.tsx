@@ -3,17 +3,24 @@
 import { useState, useTransition } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 
-import { computeMetrics, fetchMetricResult } from '../lib/api';
-import type { ActivitySummary, MetricResultDetail } from '../types/activity';
+import { computeMetrics, fetchIntervalEfficiency, fetchMetricResult } from '../lib/api';
+import type {
+  ActivitySummary,
+  IntervalEfficiencyResponse,
+  MetricResultDetail,
+} from '../types/activity';
 import { HcsrChart } from './hcsr-chart';
+import { IntervalEfficiencyChart } from './interval-efficiency-chart';
 import { MetricSummaryCard } from './metric-summary-card';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 interface ActivityDetailClientProps {
   activity: ActivitySummary;
   initialHcsr?: MetricResultDetail | null;
+  initialIntervalEfficiency?: IntervalEfficiencyResponse | null;
 }
 
 type HcsrSummary = {
@@ -69,26 +76,53 @@ function parseHcsrSeries(metric: MetricResultDetail | null | undefined): HcsrSer
   });
 }
 
-export function ActivityDetailClient({ activity, initialHcsr }: ActivityDetailClientProps) {
+export function ActivityDetailClient({
+  activity,
+  initialHcsr,
+  initialIntervalEfficiency,
+}: ActivityDetailClientProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [metric, setMetric] = useState<MetricResultDetail | null | undefined>(initialHcsr);
+  const [intervalEfficiency, setIntervalEfficiency] = useState<IntervalEfficiencyResponse | null>(
+    initialIntervalEfficiency ?? null,
+  );
 
   const summary = parseHcsrSummary(metric ?? null);
   const series = parseHcsrSeries(metric ?? null);
+  const intervalSummaries = intervalEfficiency?.intervals ?? [];
+  const hasIntervalData = intervalSummaries.length > 0;
 
   const slopeDisplay = summary.slope != null ? summary.slope.toFixed(3) : '—';
   const r2Display = summary.r2 != null ? summary.r2.toFixed(3) : '—';
   const nonlinearityDisplay =
     summary.nonlinearity != null ? summary.nonlinearity.toFixed(3) : '—';
 
+  const formatNumber = (value: number | null | undefined, fractionDigits = 0) => {
+    if (value == null || Number.isNaN(value)) {
+      return '—';
+    }
+    if (fractionDigits === 0) {
+      return Math.round(value).toString();
+    }
+    const trimmed = Number.parseFloat(value.toFixed(fractionDigits));
+    if (Number.isNaN(trimmed)) {
+      return '—';
+    }
+    return trimmed.toString();
+  };
+
   const handleRecompute = () => {
     startTransition(async () => {
       setError(null);
       try {
-        await computeMetrics(activity.id, ['hcsr']);
-        const latest = await fetchMetricResult(activity.id, 'hcsr');
-        setMetric(latest);
+        await computeMetrics(activity.id, ['hcsr', 'interval-efficiency']);
+        const [latestHcsr, latestIntervalEfficiency] = await Promise.all([
+          fetchMetricResult(activity.id, 'hcsr'),
+          fetchIntervalEfficiency(activity.id),
+        ]);
+        setMetric(latestHcsr);
+        setIntervalEfficiency(latestIntervalEfficiency);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -172,6 +206,49 @@ export function ActivityDetailClient({ activity, initialHcsr }: ActivityDetailCl
           )}
         </CardContent>
       </Card>
+      {intervalEfficiency ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Interval Efficiency</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {hasIntervalData ? (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Interval</TableHead>
+                      <TableHead>Avg Power</TableHead>
+                      <TableHead>Avg HR</TableHead>
+                      <TableHead>Avg Cadence</TableHead>
+                      <TableHead>Avg Temp</TableHead>
+                      <TableHead>W/HR</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {intervalSummaries.map((interval, index) => (
+                      <TableRow key={interval.interval ?? index}>
+                        <TableCell>{interval.interval ?? index + 1}</TableCell>
+                        <TableCell>{formatNumber(interval.avg_power)}</TableCell>
+                        <TableCell>{formatNumber(interval.avg_hr)}</TableCell>
+                        <TableCell>{formatNumber(interval.avg_cadence)}</TableCell>
+                        <TableCell>{formatNumber(interval.avg_temp, 1)}</TableCell>
+                        <TableCell>{formatNumber(interval.w_per_hr, 2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <IntervalEfficiencyChart intervals={intervalSummaries} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Compute the metric on a ride with heart rate and power data to see hour-by-hour
+                efficiency trends.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
