@@ -6,6 +6,7 @@ import type {
   MetricResultDetail,
   PaginatedActivities,
   UploadResponse,
+  IntervalEfficiencyResponse,
 } from '../types/activity';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -61,6 +62,12 @@ export async function computeMetrics(activityId: string, metricKeys?: string[]) 
 
 export async function fetchMetricResult(activityId: string, metricKey: string) {
   return apiFetch<MetricResultDetail>(`/activities/${activityId}/metrics/${metricKey}`);
+}
+
+export async function fetchIntervalEfficiency(activityId: string) {
+  return apiFetch<IntervalEfficiencyResponse>(
+    `/activities/${activityId}/metrics/interval-efficiency`,
+  );
 }
 
 export async function deleteActivity(activityId: string) {

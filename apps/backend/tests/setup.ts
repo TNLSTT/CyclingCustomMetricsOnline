@@ -20,6 +20,7 @@ type ActivitySampleRecord = {
   power: number | null;
   speed: number | null;
   elevation: number | null;
+  temperature: number | null;
 };
 
 type MetricDefinitionRecord = {
@@ -165,7 +166,10 @@ function createPrismaMock(): PrismaMock {
         const entries = Array.isArray(data) ? data : [data];
         for (const entry of entries) {
           const list = db.samples.get(entry.activityId) ?? [];
-          list.push({ ...entry });
+          list.push({
+            ...entry,
+            temperature: entry.temperature ?? null,
+          });
           db.samples.set(entry.activityId, list);
         }
         return { count: entries.length };

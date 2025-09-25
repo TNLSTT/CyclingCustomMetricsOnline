@@ -12,6 +12,7 @@ type FitRecord = {
   speed?: number;
   enhanced_altitude?: number;
   altitude?: number;
+  temperature?: number;
 };
 
 type FitParserCallbackData = { records?: FitRecord[] };
@@ -113,6 +114,7 @@ function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedAct
     power: sample.power ?? null,
     speed: sample.speed ?? null,
     elevation: sample.elevation ?? null,
+    temperature: sample.temperature ?? null,
   };
 }
 
@@ -150,6 +152,7 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
       -500,
       9000,
     );
+    const temperature = sanitizeFloat(record.temperature, -60, 90);
 
     samplesBySecond.set(t, {
       t,
@@ -158,6 +161,7 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
       power,
       speed,
       elevation,
+      temperature,
     });
   }
 
@@ -186,6 +190,7 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
           power: null,
           speed: null,
           elevation: null,
+          temperature: null,
         });
       }
     }

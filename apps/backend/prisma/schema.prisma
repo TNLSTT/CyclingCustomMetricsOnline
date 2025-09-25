@@ -38,6 +38,7 @@ model ActivitySample {
   power      Int?
   speed      Float?
   elevation  Float?
+  temperature Float?
 
   @@index([activityId])
   @@index([activityId, t])

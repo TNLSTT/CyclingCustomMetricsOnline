@@ -7,6 +7,7 @@ export interface MetricSample {
   power: number | null;
   speed: number | null;
   elevation: number | null;
+  temperature?: number | null;
 }
 
 export interface MetricDefinitionShape {
