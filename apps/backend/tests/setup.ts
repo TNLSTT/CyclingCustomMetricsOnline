@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 
 import { beforeEach, vi } from 'vitest';
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgres://localhost:5432/test';
+}
+
 type ActivityRecord = {
   id: string;
   source: string;
