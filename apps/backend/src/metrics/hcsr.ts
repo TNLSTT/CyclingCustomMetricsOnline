@@ -1,4 +1,3 @@
-import type { MetricModule } from './types.js';
 import {
   computeR2,
   linearRegression,
@@ -7,7 +6,8 @@ import {
   theilSenSlope,
   type XYPoint,
 } from '../utils/statistics.js';
-import type { MetricSample } from './types.js';
+
+import type { MetricModule, MetricSample } from './types.js';
 
 const MIN_CADENCE = 20;
 const BUCKET_SIZE = 10;

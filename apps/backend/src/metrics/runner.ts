@@ -1,10 +1,9 @@
-import { Prisma } from '@prisma/client';
-
 import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
+import { normalizeNullableJson, normalizeSummaryJson } from '../utils/prismaJson.js';
+
 import type { MetricComputationResult, MetricModule, MetricSample } from './types.js';
 import { getMetricModule, metricRegistry } from './registry.js';
-import { normalizeNullableJson, normalizeSummaryJson } from '../utils/prismaJson.js';
 
 function selectMetricModules(metricKeys?: string[]): MetricModule[] {
   const keys = metricKeys ?? Object.keys(metricRegistry);

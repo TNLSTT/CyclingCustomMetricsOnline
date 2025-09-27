@@ -91,26 +91,14 @@ function attachMetrics(activity: ActivityRecord) {
   };
 }
 
+type Delegate = Record<string, (...args: any[]) => any>;
+
 interface PrismaMock {
   $transaction<T>(fn: (tx: PrismaMock) => Promise<T>): Promise<T>;
-  activity: {
-    create(args: { data: any }): Promise<ActivityRecord>;
-    findMany(args: { skip?: number; take?: number; orderBy?: any; include?: any }): Promise<any[]>;
-    count(): Promise<number>;
-    findUnique(args: { where: { id: string }; include?: any }): Promise<any>;
-    delete(args: { where: { id: string } }): Promise<ActivityRecord>;
-  };
-  activitySample: {
-    createMany(args: { data: any }): Promise<{ count: number }>;
-    findMany(args: { where: { activityId: string }; orderBy?: any }): Promise<ActivitySampleRecord[]>;
-  };
-  metricDefinition: {
-    upsert(args: { where: { key: string }; update: any; create: any }): Promise<MetricDefinitionRecord>;
-  };
-  metricResult: {
-    upsert(args: { where: { activityId_metricDefinitionId: { activityId: string; metricDefinitionId: string } }; update: any; create: any }): Promise<MetricResultRecord>;
-    findFirst(args: any): Promise<MetricResultRecord | (MetricResultRecord & { metricDefinition: MetricDefinitionRecord }) | null>;
-  };
+  activity: Delegate;
+  activitySample: Delegate;
+  metricDefinition: Delegate;
+  metricResult: Delegate;
 }
 
 function createPrismaMock(): PrismaMock {
@@ -372,6 +360,32 @@ function createPrismaMock(): PrismaMock {
 }
 
 const prismaMock = createPrismaMock();
+
+vi.mock('@prisma/client', () => {
+  class PrismaClient {
+    activity = prismaMock.activity;
+    activitySample = prismaMock.activitySample;
+    metricDefinition = prismaMock.metricDefinition;
+    metricResult = prismaMock.metricResult;
+    profile = {};
+    user = {};
+
+    async $transaction<T>(fn: (tx: PrismaMock) => Promise<T>): Promise<T> {
+      return fn(prismaMock);
+    }
+
+    async $disconnect(): Promise<void> {
+      return Promise.resolve();
+    }
+  }
+
+  return {
+    PrismaClient,
+    Prisma: {
+      JsonNull: null,
+    },
+  };
+});
 
 vi.mock('../src/prisma.js', () => ({ prisma: prismaMock }));
 

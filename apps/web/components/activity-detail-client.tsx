@@ -186,12 +186,12 @@ export function ActivityDetailClient({
           ['hcsr', 'interval-efficiency', 'normalized-power'],
           session?.accessToken,
         );
-        setMetric(latestHcsr);
         const [latestHcsr, latestIntervalEfficiency, latestNormalized] = await Promise.all([
           fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
           fetchIntervalEfficiency(activity.id, session?.accessToken),
           fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
         ]);
+        setMetric(latestHcsr);
         setIntervalEfficiency(latestIntervalEfficiency);
         setNormalizedMetric(latestNormalized);
       } catch (err) {

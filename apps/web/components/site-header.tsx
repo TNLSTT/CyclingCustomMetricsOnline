@@ -7,7 +7,7 @@ import { signIn, signOut, useSession } from 'next-auth/react';
 import { env } from '../lib/env';
 import { Button } from './ui/button';
 
-const navItems = [
+const baseNavItems = [
   { href: '/', label: 'Home' },
   { href: '/activities', label: 'Activities' },
   { href: '/metrics', label: 'Metrics' },
@@ -42,6 +42,10 @@ function AuthControls() {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { status } = useSession();
+
+  const navItems =
+    status === 'authenticated' ? [...baseNavItems, { href: '/profile', label: 'Profile' }] : baseNavItems;
 
   return (
     <header className="border-b">
