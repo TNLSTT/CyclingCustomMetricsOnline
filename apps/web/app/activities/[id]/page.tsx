@@ -34,6 +34,22 @@ async function getHcsrMetric(id: string): Promise<MetricResultDetail | null> {
   return (await response.json()) as MetricResultDetail;
 }
 
+async function getNormalizedPowerMetric(id: string): Promise<MetricResultDetail | null> {
+  const response = await fetch(
+    `${env.internalApiUrl}/activities/${id}/metrics/normalized-power`,
+    {
+      cache: 'no-store',
+    },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('Failed to load normalized power metric');
+  }
+  return (await response.json()) as MetricResultDetail;
+}
+
 async function getIntervalEfficiency(
   id: string,
 ): Promise<IntervalEfficiencyResponse | null> {
@@ -58,14 +74,18 @@ export default async function ActivityDetailPage({
   params: { id: string };
 }) {
   const activity = await getActivity(params.id);
-  const hcsr = await getHcsrMetric(params.id);
-  const intervalEfficiency = await getIntervalEfficiency(params.id);
+  const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
+    getHcsrMetric(params.id),
+    getIntervalEfficiency(params.id),
+    getNormalizedPowerMetric(params.id),
+  ]);
 
   return (
     <ActivityDetailClient
       activity={activity}
       initialHcsr={hcsr}
       initialIntervalEfficiency={intervalEfficiency}
+      initialNormalizedPower={normalizedPower}
     />
   );
 }

@@ -21,6 +21,7 @@ interface ActivityDetailClientProps {
   activity: ActivitySummary;
   initialHcsr?: MetricResultDetail | null;
   initialIntervalEfficiency?: IntervalEfficiencyResponse | null;
+  initialNormalizedPower?: MetricResultDetail | null;
 }
 
 type HcsrSummary = {
@@ -39,6 +40,23 @@ type HcsrSeries = Array<{
   seconds: number;
   hr25?: number;
   hr75?: number;
+}>;
+
+type NormalizedPowerSummary = {
+  normalizedPower?: number | null;
+  averagePower?: number | null;
+  variabilityIndex?: number | null;
+  coastingShare?: number | null;
+  validPowerSamples?: number | null;
+  totalSamples?: number | null;
+  rollingWindowCount?: number | null;
+  windowSampleCount?: number | null;
+  windowSeconds?: number | null;
+};
+
+type NormalizedPowerSeries = Array<{
+  t: number;
+  rolling_avg_power_w: number;
 }>;
 
 function parseHcsrSummary(metric: MetricResultDetail | null | undefined): HcsrSummary {
@@ -76,10 +94,50 @@ function parseHcsrSeries(metric: MetricResultDetail | null | undefined): HcsrSer
   });
 }
 
+function parseNormalizedPowerSummary(
+  metric: MetricResultDetail | null | undefined,
+): NormalizedPowerSummary {
+  if (!metric) {
+    return {};
+  }
+  const summary = metric.summary as Record<string, unknown>;
+  const readNumber = (key: string) =>
+    typeof summary[key] === 'number' ? (summary[key] as number) : null;
+
+  return {
+    normalizedPower: readNumber('normalized_power_w'),
+    averagePower: readNumber('average_power_w'),
+    variabilityIndex: readNumber('variability_index'),
+    coastingShare: readNumber('coasting_share'),
+    validPowerSamples: readNumber('valid_power_samples'),
+    totalSamples: readNumber('total_samples'),
+    rollingWindowCount: readNumber('rolling_window_count'),
+    windowSampleCount: readNumber('window_sample_count'),
+    windowSeconds: readNumber('window_seconds'),
+  };
+}
+
+function parseNormalizedPowerSeries(
+  metric: MetricResultDetail | null | undefined,
+): NormalizedPowerSeries {
+  if (!metric || !Array.isArray(metric.series)) {
+    return [];
+  }
+  return metric.series.filter((entry): entry is NormalizedPowerSeries[number] => {
+    return (
+      typeof entry === 'object' &&
+      entry !== null &&
+      typeof (entry as any).t === 'number' &&
+      typeof (entry as any).rolling_avg_power_w === 'number'
+    );
+  });
+}
+
 export function ActivityDetailClient({
   activity,
   initialHcsr,
   initialIntervalEfficiency,
+  initialNormalizedPower,
 }: ActivityDetailClientProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -87,16 +145,21 @@ export function ActivityDetailClient({
   const [intervalEfficiency, setIntervalEfficiency] = useState<IntervalEfficiencyResponse | null>(
     initialIntervalEfficiency ?? null,
   );
+  const [normalizedMetric, setNormalizedMetric] = useState<MetricResultDetail | null | undefined>(
+    initialNormalizedPower,
+  );
 
-  const summary = parseHcsrSummary(metric ?? null);
-  const series = parseHcsrSeries(metric ?? null);
+  const hcsrSummary = parseHcsrSummary(metric ?? null);
+  const hcsrSeries = parseHcsrSeries(metric ?? null);
+  const normalizedSummary = parseNormalizedPowerSummary(normalizedMetric ?? null);
+  const normalizedSeries = parseNormalizedPowerSeries(normalizedMetric ?? null);
   const intervalSummaries = intervalEfficiency?.intervals ?? [];
   const hasIntervalData = intervalSummaries.length > 0;
 
-  const slopeDisplay = summary.slope != null ? summary.slope.toFixed(3) : '—';
-  const r2Display = summary.r2 != null ? summary.r2.toFixed(3) : '—';
+  const slopeDisplay = hcsrSummary.slope != null ? hcsrSummary.slope.toFixed(3) : '—';
+  const r2Display = hcsrSummary.r2 != null ? hcsrSummary.r2.toFixed(3) : '—';
   const nonlinearityDisplay =
-    summary.nonlinearity != null ? summary.nonlinearity.toFixed(3) : '—';
+    hcsrSummary.nonlinearity != null ? hcsrSummary.nonlinearity.toFixed(3) : '—';
 
   const formatNumber = (value: number | null | undefined, fractionDigits = 0) => {
     if (value == null || Number.isNaN(value)) {
@@ -116,18 +179,32 @@ export function ActivityDetailClient({
     startTransition(async () => {
       setError(null);
       try {
-        await computeMetrics(activity.id, ['hcsr', 'interval-efficiency']);
-        const [latestHcsr, latestIntervalEfficiency] = await Promise.all([
+        await computeMetrics(activity.id, ['hcsr', 'interval-efficiency', 'normalized-power']);
+        const [latestHcsr, latestIntervalEfficiency, latestNormalized] = await Promise.all([
           fetchMetricResult(activity.id, 'hcsr'),
           fetchIntervalEfficiency(activity.id),
+          fetchMetricResult(activity.id, 'normalized-power'),
         ]);
         setMetric(latestHcsr);
         setIntervalEfficiency(latestIntervalEfficiency);
+        setNormalizedMetric(latestNormalized);
       } catch (err) {
         setError((err as Error).message);
       }
     });
   };
+
+  const normalizedPowerDisplay = formatNumber(normalizedSummary.normalizedPower, 1);
+  const averagePowerDisplay = formatNumber(normalizedSummary.averagePower, 1);
+  const variabilityDisplay = formatNumber(normalizedSummary.variabilityIndex, 3);
+  const coastingShareDisplay =
+    normalizedSummary.coastingShare != null
+      ? `${formatNumber(normalizedSummary.coastingShare * 100, 1)}%`
+      : '—';
+  const validSamplesDisplay = formatNumber(normalizedSummary.validPowerSamples);
+  const rollingWindowsDisplay = formatNumber(normalizedSummary.rollingWindowCount);
+  const windowSecondsDisplay = formatNumber(normalizedSummary.windowSeconds);
+  const normalizedSeriesPreview = normalizedSeries.slice(-10);
 
   return (
     <div className="space-y-6">
@@ -177,19 +254,53 @@ export function ActivityDetailClient({
         />
         <MetricSummaryCard
           title="Intercept"
-          value={summary.intercept?.toFixed(1)}
+          value={hcsrSummary.intercept?.toFixed(1)}
           units="bpm"
           description="Estimated HR at zero cadence"
         />
         <MetricSummaryCard
           title="Half split Δ slope"
-          value={summary.deltaSlope?.toFixed(3)}
+          value={hcsrSummary.deltaSlope?.toFixed(3)}
           description="Fatigue signature between ride halves"
         />
         <MetricSummaryCard
           title="Valid seconds"
-          value={summary.validSeconds ?? '—'}
+          value={hcsrSummary.validSeconds ?? '—'}
           description="Data contributing to the analysis"
+        />
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricSummaryCard
+          title="Normalized power"
+          value={normalizedPowerDisplay}
+          units="W"
+          description="30 s rolling-power weighted effort"
+        />
+        <MetricSummaryCard
+          title="Average power"
+          value={averagePowerDisplay}
+          units="W"
+          description="Arithmetic mean of valid power samples"
+        />
+        <MetricSummaryCard
+          title="Variability index"
+          value={variabilityDisplay}
+          description="Normalized to average power ratio"
+        />
+        <MetricSummaryCard
+          title="Coasting share"
+          value={coastingShareDisplay}
+          description="Time with ≤5 W of power"
+        />
+        <MetricSummaryCard
+          title="Valid power samples"
+          value={validSamplesDisplay}
+          description="Samples used in the computation"
+        />
+        <MetricSummaryCard
+          title="Rolling windows"
+          value={rollingWindowsDisplay}
+          description={`30 s windows (sample: ${windowSecondsDisplay}s)`}
         />
       </div>
       <Card>
@@ -197,11 +308,49 @@ export function ActivityDetailClient({
           <CardTitle>HR-to-Cadence Scaling Ratio buckets</CardTitle>
         </CardHeader>
         <CardContent>
-          {series.length > 0 ? (
-            <HcsrChart buckets={series} slope={summary.slope ?? null} intercept={summary.intercept ?? null} />
+          {hcsrSeries.length > 0 ? (
+            <HcsrChart
+              buckets={hcsrSeries}
+              slope={hcsrSummary.slope ?? null}
+              intercept={hcsrSummary.intercept ?? null}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
               Upload a ride with valid cadence and heart rate data to visualize the scaling ratio.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Normalized power trend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {normalizedSeries.length > 0 ? (
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time (s)</TableHead>
+                    <TableHead>Rolling avg (W)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {normalizedSeriesPreview.map((entry) => (
+                    <TableRow key={`${entry.t}-${entry.rolling_avg_power_w}`}>
+                      <TableCell>{formatNumber(entry.t)}</TableCell>
+                      <TableCell>{formatNumber(entry.rolling_avg_power_w, 1)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <p className="text-xs text-muted-foreground">
+                Showing {normalizedSeriesPreview.length} of {normalizedSeries.length} windows (last 10).
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Compute the metric on a ride with sufficient power data to view rolling 30 second trends.
             </p>
           )}
         </CardContent>
