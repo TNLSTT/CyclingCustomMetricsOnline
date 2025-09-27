@@ -10,9 +10,7 @@ import type {
 } from '../../../types/activity';
 
 async function getActivity(id: string, token?: string): Promise<ActivitySummary> {
-  const headers: HeadersInit | undefined = token
-    ? { Authorization: `Bearer ${token}` }
-    : undefined;
+  const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
   const response = await fetch(`${env.internalApiUrl}/activities/${id}`, {
     cache: 'no-store',
     headers,
@@ -27,9 +25,7 @@ async function getActivity(id: string, token?: string): Promise<ActivitySummary>
 }
 
 async function getHcsrMetric(id: string, token?: string): Promise<MetricResultDetail | null> {
-  const headers: HeadersInit | undefined = token
-    ? { Authorization: `Bearer ${token}` }
-    : undefined;
+  const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
   const response = await fetch(`${env.internalApiUrl}/activities/${id}/metrics/hcsr`, {
     cache: 'no-store',
     headers,
@@ -47,17 +43,11 @@ async function getNormalizedPowerMetric(
   id: string,
   token?: string,
 ): Promise<MetricResultDetail | null> {
-  const headers: HeadersInit | undefined = token
-    ? { Authorization: `Bearer ${token}` }
-    : undefined;
-async function getNormalizedPowerMetric(id: string): Promise<MetricResultDetail | null> {
-  const response = await fetch(
-    `${env.internalApiUrl}/activities/${id}/metrics/normalized-power`,
-    {
-      cache: 'no-store',
-      headers,
-    },
-  );
+  const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
+  const response = await fetch(`${env.internalApiUrl}/activities/${id}/metrics/normalized-power`, {
+    cache: 'no-store',
+    headers,
+  });
   if (response.status === 404) {
     return null;
   }
@@ -71,9 +61,7 @@ async function getIntervalEfficiency(
   id: string,
   token?: string,
 ): Promise<IntervalEfficiencyResponse | null> {
-  const headers: HeadersInit | undefined = token
-    ? { Authorization: `Bearer ${token}` }
-    : undefined;
+  const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
   const response = await fetch(
     `${env.internalApiUrl}/activities/${id}/metrics/interval-efficiency`,
     {
@@ -101,16 +89,11 @@ export default async function ActivityDetailPage({
   }
 
   const token = session?.accessToken;
-  const activity = await getActivity(params.id, token ?? undefined);
-  const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
-    getHcsrMetric(params.id, token ?? undefined),
-    getIntervalEfficiency(params.id, token ?? undefined),
-    getNormalizedPowerMetric(params.id, token ?? undefined),
-  const activity = await getActivity(params.id);
-  const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
-    getHcsrMetric(params.id),
-    getIntervalEfficiency(params.id),
-    getNormalizedPowerMetric(params.id),
+  const [activity, hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
+    getActivity(params.id, token),
+    getHcsrMetric(params.id, token),
+    getIntervalEfficiency(params.id, token),
+    getNormalizedPowerMetric(params.id, token),
   ]);
 
   return (
