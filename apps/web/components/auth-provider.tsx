@@ -2,11 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 
-import { env } from '../lib/env';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  if (!env.authEnabled) {
-    return <>{children}</>;
-  }
+  // Always wrap in SessionProvider so hooks like useSession() don’t crash
   return <SessionProvider>{children}</SessionProvider>;
 }
