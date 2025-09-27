@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { ActivityDetailClient } from '../../../components/activity-detail-client';
+import { getServerAuthSession } from '../../../lib/auth';
 import { env } from '../../../lib/env';
 import type {
   ActivitySummary,
@@ -8,9 +9,13 @@ import type {
   MetricResultDetail,
 } from '../../../types/activity';
 
-async function getActivity(id: string): Promise<ActivitySummary> {
+async function getActivity(id: string, token?: string): Promise<ActivitySummary> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(`${env.internalApiUrl}/activities/${id}`, {
     cache: 'no-store',
+    headers,
   });
   if (response.status === 404) {
     notFound();
@@ -21,9 +26,13 @@ async function getActivity(id: string): Promise<ActivitySummary> {
   return (await response.json()) as ActivitySummary;
 }
 
-async function getHcsrMetric(id: string): Promise<MetricResultDetail | null> {
+async function getHcsrMetric(id: string, token?: string): Promise<MetricResultDetail | null> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(`${env.internalApiUrl}/activities/${id}/metrics/hcsr`, {
     cache: 'no-store',
+    headers,
   });
   if (response.status === 404) {
     return null;
@@ -34,11 +43,19 @@ async function getHcsrMetric(id: string): Promise<MetricResultDetail | null> {
   return (await response.json()) as MetricResultDetail;
 }
 
+async function getNormalizedPowerMetric(
+  id: string,
+  token?: string,
+): Promise<MetricResultDetail | null> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
 async function getNormalizedPowerMetric(id: string): Promise<MetricResultDetail | null> {
   const response = await fetch(
     `${env.internalApiUrl}/activities/${id}/metrics/normalized-power`,
     {
       cache: 'no-store',
+      headers,
     },
   );
   if (response.status === 404) {
@@ -52,11 +69,16 @@ async function getNormalizedPowerMetric(id: string): Promise<MetricResultDetail 
 
 async function getIntervalEfficiency(
   id: string,
+  token?: string,
 ): Promise<IntervalEfficiencyResponse | null> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(
     `${env.internalApiUrl}/activities/${id}/metrics/interval-efficiency`,
     {
       cache: 'no-store',
+      headers,
     },
   );
   if (response.status === 404) {
@@ -73,6 +95,17 @@ export default async function ActivityDetailPage({
 }: {
   params: { id: string };
 }) {
+  const session = await getServerAuthSession();
+  if (env.authEnabled && !session) {
+    redirect('/signin');
+  }
+
+  const token = session?.accessToken;
+  const activity = await getActivity(params.id, token ?? undefined);
+  const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
+    getHcsrMetric(params.id, token ?? undefined),
+    getIntervalEfficiency(params.id, token ?? undefined),
+    getNormalizedPowerMetric(params.id, token ?? undefined),
   const activity = await getActivity(params.id);
   const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
     getHcsrMetric(params.id),

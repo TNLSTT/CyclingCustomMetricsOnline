@@ -1,5 +1,8 @@
 import Link from 'next/link';
 
+import { redirect } from 'next/navigation';
+
+import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
 import { formatDuration } from '../../lib/utils';
 import type { PaginatedActivities } from '../../types/activity';
@@ -8,9 +11,13 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 
-async function getActivities(): Promise<PaginatedActivities> {
+async function getActivities(token?: string): Promise<PaginatedActivities> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(`${env.internalApiUrl}/activities?page=1&pageSize=50`, {
     cache: 'no-store',
+    headers,
   });
   if (!response.ok) {
     throw new Error('Failed to load activities');
@@ -19,8 +26,13 @@ async function getActivities(): Promise<PaginatedActivities> {
 }
 
 export default async function ActivitiesPage() {
+  const session = await getServerAuthSession();
+  if (env.authEnabled && !session) {
+    redirect('/signin');
+  }
+
   try {
-    const { data: activities } = await getActivities();
+    const { data: activities } = await getActivities(session?.accessToken);
 
     return (
       <div className="space-y-6">

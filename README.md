@@ -48,9 +48,17 @@ Key variables:
 - `DATABASE_URL` – PostgreSQL connection string used by Prisma.
 - `UPLOAD_DIR` – directory where raw FIT uploads are preserved.
 - `AUTH_ENABLED` / `NEXT_PUBLIC_AUTH_ENABLED` – toggle authentication.
+- `JWT_SECRET` – signing secret for API-issued bearer tokens (defaults to `NEXTAUTH_SECRET` when unset).
 - `NEXT_PUBLIC_API_URL` – frontend-to-backend base URL (`http://localhost:4000/api` in dev).
 - `NEXT_INTERNAL_API_URL` – internal API URL for server-side Next.js fetching (e.g. `http://backend:4000/api` in Docker).
 - `NEXTAUTH_SECRET`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD` – NextAuth credentials (optional).
+
+### Authentication
+
+Set `AUTH_ENABLED=true` (backend) and `NEXT_PUBLIC_AUTH_ENABLED=true` (frontend) to require sign-in. Users can self-register via
+the `/register` page, which creates a credentials-based account, generates a JWT for API access, and automatically signs them in.
+Authenticated requests include a `Bearer` token, and the API scopes activities, uploads, metric recomputations, and history
+queries to the requesting user.
 
 ### Database
 
@@ -140,7 +148,8 @@ Implementation details (`apps/backend/src/metrics/hcsr.ts`):
 | `GET`  | `/api/activities/:id/metrics/:metricKey` | Metric result detail (summary + series) |
 | `DELETE` | `/api/activities/:id` | Delete activity and associated data |
 
-All endpoints are user-agnostic by default; enable auth to scope to authenticated users.
+With `AUTH_ENABLED=true` the upload, activities, and metrics history endpoints require a `Bearer` token and only operate on data
+owned by the authenticated user.
 
 ## Adding Metrics
 

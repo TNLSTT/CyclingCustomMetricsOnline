@@ -8,11 +8,12 @@ generator client {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String?    @unique
-  provider  String?
-  createdAt DateTime   @default(now())
-  activities Activity[]
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  provider     String?
+  createdAt    DateTime   @default(now())
+  activities   Activity[]
 }
 
 model Activity {

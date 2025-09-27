@@ -29,9 +29,14 @@ function AuthControls() {
   }
 
   return (
-    <Button variant="ghost" size="sm" onClick={() => signIn()}>
-      Sign in
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" onClick={() => signIn()}>
+        Sign in
+      </Button>
+      <Button size="sm" asChild>
+        <Link href="/register">Register</Link>
+      </Button>
+    </div>
   );
 }
 

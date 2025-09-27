@@ -64,10 +64,19 @@ export async function saveActivity(
 }
 
 export async function deleteActivity(activityId: string, userId?: string) {
+  if (userId) {
+    const activity = await prisma.activity.findFirst({
+      where: { id: activityId, userId },
+    });
+
+    if (!activity) {
+      throw new Error('Activity not found');
+    }
+  }
+
   return prisma.activity.delete({
     where: {
       id: activityId,
-      ...(userId ? { userId } : {}),
     },
   });
 }

@@ -3,6 +3,7 @@ import express from 'express';
 import asyncHandler from 'express-async-handler';
 import { z } from 'zod';
 
+import { env } from '../env.js';
 import { prisma } from '../prisma.js';
 import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
@@ -50,11 +51,18 @@ export const activitiesRouter = express.Router();
 activitiesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user?.id;
     const params = paginationSchema.parse(req.query);
     const skip = (params.page - 1) * params.pageSize;
 
     const [activities, total] = await Promise.all([
       prisma.activity.findMany({
+        where: userId ? { userId } : undefined,
         skip,
         take: params.pageSize,
         orderBy: { createdAt: 'desc' },
@@ -64,7 +72,7 @@ activitiesRouter.get(
           },
         },
       }),
-      prisma.activity.count(),
+      prisma.activity.count({ where: userId ? { userId } : undefined }),
     ]);
 
     res.json({
@@ -79,8 +87,14 @@ activitiesRouter.get(
 activitiesRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const activity = await prisma.activity.findUnique({
-      where: { id: req.params.id },
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user?.id;
+    const activity = await prisma.activity.findFirst({
+      where: { id: req.params.id, ...(userId ? { userId } : {}) },
       include: {
         metrics: {
           include: { metricDefinition: true },
@@ -101,10 +115,15 @@ activitiesRouter.get(
 activitiesRouter.post(
   '/:id/compute',
   asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const body = computeSchema.parse(req.body);
     const metricKeys = body?.metricKeys;
 
-    const results = await runMetrics(req.params.id, metricKeys ?? undefined);
+    const results = await runMetrics(req.params.id, metricKeys ?? undefined, req.user?.id);
     res.json({ activityId: req.params.id, results });
   }),
 );
@@ -112,10 +131,16 @@ activitiesRouter.post(
 activitiesRouter.get(
   '/:id/metrics/interval-efficiency',
   asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const metricResult = await prisma.metricResult.findFirst({
       where: {
         activityId: req.params.id,
         metricDefinition: { key: 'interval-efficiency' },
+        ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
       },
     });
 
@@ -141,10 +166,16 @@ activitiesRouter.get(
 activitiesRouter.get(
   '/:id/metrics/:metricKey',
   asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const metricResult = await prisma.metricResult.findFirst({
       where: {
         activityId: req.params.id,
         metricDefinition: { key: req.params.metricKey },
+        ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
       },
       include: { metricDefinition: true },
     });
@@ -167,7 +198,12 @@ activitiesRouter.get(
 activitiesRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    await deleteActivity(req.params.id);
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    await deleteActivity(req.params.id, req.user?.id);
     res.status(204).send();
   }),
 );

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 import { computeMetrics, fetchIntervalEfficiency, fetchMetricResult } from '../lib/api';
 import type {
@@ -139,6 +140,7 @@ export function ActivityDetailClient({
   initialIntervalEfficiency,
   initialNormalizedPower,
 }: ActivityDetailClientProps) {
+  const { data: session } = useSession();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [metric, setMetric] = useState<MetricResultDetail | null | undefined>(initialHcsr);
@@ -179,6 +181,15 @@ export function ActivityDetailClient({
     startTransition(async () => {
       setError(null);
       try {
+        await computeMetrics(
+          activity.id,
+          ['hcsr', 'interval-efficiency', 'normalized-power'],
+          session?.accessToken,
+        );
+        const [latestHcsr, latestIntervalEfficiency, latestNormalized] = await Promise.all([
+          fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
+          fetchIntervalEfficiency(activity.id, session?.accessToken),
+          fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
         await computeMetrics(activity.id, ['hcsr', 'interval-efficiency', 'normalized-power']);
         const [latestHcsr, latestIntervalEfficiency, latestNormalized] = await Promise.all([
           fetchMetricResult(activity.id, 'hcsr'),
