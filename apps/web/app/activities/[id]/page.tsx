@@ -50,6 +50,7 @@ async function getNormalizedPowerMetric(
   const headers: HeadersInit | undefined = token
     ? { Authorization: `Bearer ${token}` }
     : undefined;
+async function getNormalizedPowerMetric(id: string): Promise<MetricResultDetail | null> {
   const response = await fetch(
     `${env.internalApiUrl}/activities/${id}/metrics/normalized-power`,
     {
@@ -105,6 +106,11 @@ export default async function ActivityDetailPage({
     getHcsrMetric(params.id, token ?? undefined),
     getIntervalEfficiency(params.id, token ?? undefined),
     getNormalizedPowerMetric(params.id, token ?? undefined),
+  const activity = await getActivity(params.id);
+  const [hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
+    getHcsrMetric(params.id),
+    getIntervalEfficiency(params.id),
+    getNormalizedPowerMetric(params.id),
   ]);
 
   return (
