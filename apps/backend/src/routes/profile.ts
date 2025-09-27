@@ -26,6 +26,15 @@ function toNullable<T>(value: T | undefined | null): T | null | undefined {
 
 export const profileRouter = express.Router();
 
+async function getOrCreateProfile(userId: string) {
+  const existing = await prisma.profile.findUnique({ where: { userId } });
+  if (existing) {
+    return existing;
+  }
+
+  return prisma.profile.create({ data: { userId } });
+}
+
 profileRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -40,11 +49,7 @@ profileRouter.get(
       return;
     }
 
-    const profile = await prisma.profile.upsert({
-      where: { userId },
-      create: { userId },
-      update: {},
-    });
+    const profile = await getOrCreateProfile(userId);
 
     res.json(profile);
   }),
@@ -77,12 +82,23 @@ profileRouter.put(
     const cleanedEntries = Object.entries(data).filter(([, value]) => value !== undefined);
     const updateData = Object.fromEntries(cleanedEntries);
 
-    const profile = await prisma.profile.upsert({
-      where: { userId: req.user.id },
-      create: { userId: req.user.id, ...updateData },
-      update: updateData,
-    });
+    const userId = req.user.id;
 
-    res.json(profile);
+    const existing = await prisma.profile.findUnique({ where: { userId } });
+
+    if (!existing) {
+      const created = await prisma.profile.create({ data: { userId, ...updateData } });
+      res.json(created);
+      return;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.json(existing);
+      return;
+    }
+
+    const updated = await prisma.profile.update({ where: { userId }, data: updateData });
+
+    res.json(updated);
   }),
 );
