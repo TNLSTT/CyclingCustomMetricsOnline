@@ -48,7 +48,7 @@ export function RegisterForm() {
         return;
       }
 
-      router.push('/activities');
+      router.push('/profile');
     } catch (err) {
       setError((err as Error).message);
     } finally {

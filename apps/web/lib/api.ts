@@ -9,6 +9,7 @@ import type {
   IntervalEfficiencyResponse,
   IntervalEfficiencyHistoryResponse,
 } from '../types/activity';
+import type { Profile } from '../types/profile';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -112,5 +113,23 @@ export async function registerUserAccount(email: string, password: string) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     },
+  );
+}
+
+export async function fetchProfile(authToken?: string) {
+  return apiFetch<Profile | null>('/profile', undefined, authToken);
+}
+
+export async function updateProfile(
+  updates: { displayName: string | null; avatarUrl: string | null; bio: string | null },
+  authToken?: string,
+) {
+  return apiFetch<Profile>(
+    '/profile',
+    {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    },
+    authToken,
   );
 }

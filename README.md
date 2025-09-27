@@ -55,10 +55,8 @@ Key variables:
 
 ### Authentication
 
-Set `AUTH_ENABLED=true` (backend) and `NEXT_PUBLIC_AUTH_ENABLED=true` (frontend) to require sign-in. Users can self-register via
-the `/register` page, which creates a credentials-based account, generates a JWT for API access, and automatically signs them in.
-Authenticated requests include a `Bearer` token, and the API scopes activities, uploads, metric recomputations, and history
-queries to the requesting user.
+- **Open mode** – leave `AUTH_ENABLED=false` and `NEXT_PUBLIC_AUTH_ENABLED=false` (the defaults) to skip authentication entirely. Uploads, metrics, and activities are shared across visitors which keeps local demos frictionless.
+- **Protected mode** – set `AUTH_ENABLED=true` in the backend `.env` and `NEXT_PUBLIC_AUTH_ENABLED=true` in the frontend `.env` to require registration and login. New users can sign up via `/register` and will be redirected to `/profile` after signing in to complete their display name, avatar, and bio. All API calls (uploads, activity history, metric recomputations) are automatically scoped to the authenticated user via bearer tokens issued by the backend.
 
 ### Database
 

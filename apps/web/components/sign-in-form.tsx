@@ -28,7 +28,7 @@ export function SignInForm() {
         redirect: false,
         email: normalizedEmail,
         password,
-        callbackUrl: searchParams.get('callbackUrl') ?? '/activities',
+        callbackUrl: searchParams.get('callbackUrl') ?? '/profile',
       });
 
       if (result?.error) {
@@ -36,7 +36,7 @@ export function SignInForm() {
         return;
       }
 
-      router.push(result?.url ?? '/activities');
+      router.push(result?.url ?? '/profile');
     } catch (err) {
       setError((err as Error).message);
     } finally {
