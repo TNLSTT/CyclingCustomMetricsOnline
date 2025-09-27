@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import { createApp } from '../src/app.js';
 import type { NormalizedActivity } from '../src/types.js';
@@ -52,11 +53,11 @@ const app = createApp();
 const fixturePath = new URL('./fixtures/mock.fit', import.meta.url).pathname;
 
 describe('Activities API flow', () => {
-  let unlinkSpy: ReturnType<typeof vi.spyOn>;
+  let unlinkSpy: MockInstance<Parameters<typeof fs.unlink>, ReturnType<typeof fs.unlink>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    unlinkSpy = vi.spyOn(fs, 'unlink').mockResolvedValue();
+    unlinkSpy = vi.spyOn(fs, 'unlink').mockResolvedValue(undefined);
   });
 
   afterEach(() => {

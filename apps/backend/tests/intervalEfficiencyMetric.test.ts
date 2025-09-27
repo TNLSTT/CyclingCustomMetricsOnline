@@ -15,7 +15,7 @@ const activity: Activity = {
 };
 
 describe('intervalEfficiencyMetric', () => {
-  it('computes per-interval averages and efficiency', () => {
+  it('computes per-interval averages and efficiency', async () => {
     const samples: MetricSample[] = [
       {
         t: 0,
@@ -55,7 +55,7 @@ describe('intervalEfficiencyMetric', () => {
       },
     ];
 
-    const result = intervalEfficiencyMetric.compute(samples, { activity });
+    const result = await intervalEfficiencyMetric.compute(samples, { activity });
     expect(result.summary.interval_seconds).toBe(3600);
     expect(result.summary.interval_count).toBe(2);
 
@@ -82,7 +82,7 @@ describe('intervalEfficiencyMetric', () => {
     });
   });
 
-  it('yields null efficiency when heart rate data is unavailable', () => {
+  it('yields null efficiency when heart rate data is unavailable', async () => {
     const samples: MetricSample[] = [
       {
         t: 0,
@@ -104,7 +104,7 @@ describe('intervalEfficiencyMetric', () => {
       },
     ];
 
-    const result = intervalEfficiencyMetric.compute(samples, { activity });
+    const result = await intervalEfficiencyMetric.compute(samples, { activity });
     const intervals = Array.isArray(result.series) ? (result.series as any[]) : [];
     expect(intervals).toHaveLength(1);
     expect(intervals[0]).toMatchObject({

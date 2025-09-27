@@ -6,6 +6,23 @@ import { prisma } from '../prisma.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 import { logger } from '../logger.js';
 
+type IntervalEfficiencyHistoryRow = {
+  activityId: string;
+  computedAt: Date;
+  summary: Record<string, unknown>;
+  series: unknown;
+  activity: {
+    startTime: Date;
+    durationSec: number;
+  } | null;
+  metricDefinition: {
+    key: string;
+    name: string;
+    description: string;
+    units: string | null;
+  } | null;
+};
+
 export const metricsRouter = express.Router();
 
 metricsRouter.get('/', (_req, res) => {
@@ -31,14 +48,14 @@ metricsRouter.get(
         return;
       }
 
-      const metricResults = await prisma.metricResult.findMany({
+      const metricResults = (await prisma.metricResult.findMany({
         where: {
           metricDefinition: { key: metricKey },
           ...(userId ? { activity: { userId } } : {}),
         },
         include: { activity: true, metricDefinition: true },
         orderBy: { activity: { startTime: 'asc' } },
-      });
+      })) as IntervalEfficiencyHistoryRow[];
 
       if (metricResults.length === 0) {
         res.json({
@@ -62,7 +79,7 @@ metricsRouter.get(
       } as const;
 
       const definition = metricResults[0]?.metricDefinition ?? fallbackDefinition;
-      const intervalSeconds = metricResults.reduce((seconds, result) => {
+      const intervalSeconds = metricResults.reduce<number>((seconds, result) => {
         const summary = result.summary as Record<string, unknown>;
         const candidate = summary.interval_seconds;
         if (typeof candidate === 'number' && !Number.isNaN(candidate)) {
