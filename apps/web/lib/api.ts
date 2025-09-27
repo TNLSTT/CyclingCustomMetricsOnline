@@ -10,12 +10,15 @@ import type {
   IntervalEfficiencyHistoryResponse,
 } from '../types/activity';
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
-  const headers =
-    init?.body instanceof FormData
-      ? init?.headers
-      : { 'Content-Type': 'application/json', ...(init?.headers ?? {}) };
+  const baseHeadersInit: HeadersInit | undefined = init?.body instanceof FormData
+    ? init?.headers
+    : { 'Content-Type': 'application/json', ...(init?.headers ?? {}) };
+  const headers = new Headers(baseHeadersInit ?? undefined);
+  if (authToken) {
+    headers.set('Authorization', `Bearer ${authToken}`);
+  }
   const response = await fetch(url, {
     ...init,
     headers,
@@ -36,52 +39,78 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function uploadFitFiles(files: File[]) {
+export async function uploadFitFiles(files: File[], authToken?: string) {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
   return apiFetch<UploadResponse>('/upload', {
     method: 'POST',
     body: formData,
-  });
+  }, authToken);
 }
 
-export async function fetchActivities(page = 1, pageSize = 10) {
+export async function fetchActivities(page = 1, pageSize = 10, authToken?: string) {
   const searchParams = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-  return apiFetch<PaginatedActivities>(`/activities?${searchParams.toString()}`);
+  return apiFetch<PaginatedActivities>(`/activities?${searchParams.toString()}`, undefined, authToken);
 }
 
-export async function fetchActivity(activityId: string) {
-  return apiFetch<ActivitySummary>(`/activities/${activityId}`);
+export async function fetchActivity(activityId: string, authToken?: string) {
+  return apiFetch<ActivitySummary>(`/activities/${activityId}`, undefined, authToken);
 }
 
-export async function computeMetrics(activityId: string, metricKeys?: string[]) {
-  return apiFetch<ComputeMetricsResponse>(`/activities/${activityId}/compute`, {
-    method: 'POST',
-    body: JSON.stringify(metricKeys ? { metricKeys } : {}),
-  });
+export async function computeMetrics(activityId: string, metricKeys?: string[], authToken?: string) {
+  return apiFetch<ComputeMetricsResponse>(
+    `/activities/${activityId}/compute`,
+    {
+      method: 'POST',
+      body: JSON.stringify(metricKeys ? { metricKeys } : {}),
+    },
+    authToken,
+  );
 }
 
-export async function fetchMetricResult(activityId: string, metricKey: string) {
-  return apiFetch<MetricResultDetail>(`/activities/${activityId}/metrics/${metricKey}`);
+export async function fetchMetricResult(
+  activityId: string,
+  metricKey: string,
+  authToken?: string,
+) {
+  return apiFetch<MetricResultDetail>(
+    `/activities/${activityId}/metrics/${metricKey}`,
+    undefined,
+    authToken,
+  );
 }
 
-export async function fetchIntervalEfficiency(activityId: string) {
+export async function fetchIntervalEfficiency(activityId: string, authToken?: string) {
   return apiFetch<IntervalEfficiencyResponse>(
     `/activities/${activityId}/metrics/interval-efficiency`,
+    undefined,
+    authToken,
   );
 }
 
-export async function fetchIntervalEfficiencyHistory() {
+export async function fetchIntervalEfficiencyHistory(authToken?: string) {
   return apiFetch<IntervalEfficiencyHistoryResponse>(
     '/metrics/interval-efficiency/history',
+    undefined,
+    authToken,
   );
 }
 
-export async function deleteActivity(activityId: string) {
-  await apiFetch<void>(`/activities/${activityId}`, { method: 'DELETE' });
+export async function deleteActivity(activityId: string, authToken?: string) {
+  await apiFetch<void>(`/activities/${activityId}`, { method: 'DELETE' }, authToken);
 }
 
-export async function fetchMetricDefinitions() {
-  const response = await apiFetch<{ definitions: MetricDefinition[] }>(`/metrics`);
+export async function fetchMetricDefinitions(authToken?: string) {
+  const response = await apiFetch<{ definitions: MetricDefinition[] }>(`/metrics`, undefined, authToken);
   return response.definitions;
+}
+
+export async function registerUserAccount(email: string, password: string) {
+  return apiFetch<{ user: { id: string; email: string }; token: string }>(
+    '/auth/register',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    },
+  );
 }

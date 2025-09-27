@@ -14,6 +14,7 @@ const envSchema = z.object({
     .optional()
     .transform((val) => (val ? val.toLowerCase() === 'true' : false)),
   NEXTAUTH_SECRET: z.string().optional(),
+  JWT_SECRET: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),
   FRONTEND_URL: z.string().optional(),
 });
@@ -25,4 +26,13 @@ if (!parsed.success) {
   throw new Error('Invalid environment variables');
 }
 
-export const env = parsed.data;
+const jwtSecret = parsed.data.JWT_SECRET ?? parsed.data.NEXTAUTH_SECRET;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET or NEXTAUTH_SECRET must be provided');
+}
+
+export const env = {
+  ...parsed.data,
+  JWT_SECRET: jwtSecret,
+};

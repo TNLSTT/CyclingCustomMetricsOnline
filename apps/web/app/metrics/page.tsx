@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
+import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
 import type {
   IntervalEfficiencyHistoryResponse,
@@ -10,9 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { IntervalEfficiencyHistoryChart } from '../../components/interval-efficiency-history-chart';
 
-async function getMetricDefinitions(): Promise<MetricDefinition[]> {
+async function getMetricDefinitions(token?: string): Promise<MetricDefinition[]> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(`${env.internalApiUrl}/metrics`, {
     cache: 'no-store',
+    headers,
   });
   if (!response.ok) {
     throw new Error('Failed to load metric definitions');
@@ -21,9 +27,15 @@ async function getMetricDefinitions(): Promise<MetricDefinition[]> {
   return data.definitions;
 }
 
-async function getIntervalEfficiencyHistory(): Promise<IntervalEfficiencyHistoryResponse> {
+async function getIntervalEfficiencyHistory(
+  token?: string,
+): Promise<IntervalEfficiencyHistoryResponse> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
   const response = await fetch(`${env.internalApiUrl}/metrics/interval-efficiency/history`, {
     cache: 'no-store',
+    headers,
   });
 
   if (!response.ok) {
@@ -34,10 +46,15 @@ async function getIntervalEfficiencyHistory(): Promise<IntervalEfficiencyHistory
 }
 
 export default async function MetricsPage() {
+  const session = await getServerAuthSession();
+  if (env.authEnabled && !session) {
+    redirect('/signin');
+  }
+
   try {
     const [definitions, history] = await Promise.all([
-      getMetricDefinitions(),
-      getIntervalEfficiencyHistory(),
+      getMetricDefinitions(session?.accessToken),
+      getIntervalEfficiencyHistory(session?.accessToken),
     ]);
 
     return (

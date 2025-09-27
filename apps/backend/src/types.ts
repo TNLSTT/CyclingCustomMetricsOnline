@@ -15,3 +15,8 @@ export interface NormalizedActivity {
   sampleRateHz?: number | null;
   samples: NormalizedActivitySample[];
 }
+
+export interface AuthenticatedUser {
+  id: string;
+  email?: string;
+}

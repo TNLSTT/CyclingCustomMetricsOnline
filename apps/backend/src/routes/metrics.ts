@@ -24,6 +24,7 @@ metricsRouter.get(
   asyncHandler(async (req, res) => {
     try {
       const { metricKey } = req.params;
+      const userId = req.user?.id;
 
       if (metricKey !== 'interval-efficiency') {
         res.status(404).json({ error: 'Metric history not available.' });
@@ -31,7 +32,10 @@ metricsRouter.get(
       }
 
       const metricResults = await prisma.metricResult.findMany({
-        where: { metricDefinition: { key: metricKey } },
+        where: {
+          metricDefinition: { key: metricKey },
+          ...(userId ? { activity: { userId } } : {}),
+        },
         include: { activity: true, metricDefinition: true },
         orderBy: { activity: { startTime: 'asc' } },
       });

@@ -42,6 +42,11 @@ uploadRouter.post(
   '/',
   upload.any(),
   asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
     const uploadedFiles = Array.isArray(req.files) ? (req.files as Express.Multer.File[]) : [];
     const fitFiles = uploadedFiles.filter((file) =>
       ['file', 'files'].includes(file.fieldname.toLowerCase()),
@@ -58,7 +63,7 @@ uploadRouter.post(
     for (const file of fitFiles) {
       const filePath = file.path;
       try {
-        const { activity } = await ingestFitFile(filePath);
+        const { activity } = await ingestFitFile(filePath, req.user?.id);
         uploads.push({ activityId: activity.id, fileName: file.originalname });
       } catch (error) {
         failures.push({

@@ -2,6 +2,18 @@ import { randomUUID } from 'node:crypto';
 
 import { beforeEach, vi } from 'vitest';
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgres://localhost:5432/test';
+}
+
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = 'test-secret';
+}
+
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = process.env.NEXTAUTH_SECRET;
+}
+
 type ActivityRecord = {
   id: string;
   source: string;
@@ -121,8 +133,11 @@ function createPrismaMock(): PrismaMock {
         db.activities.set(id, record);
         return cloneActivity(record);
       },
-      findMany: async ({ skip = 0, take, orderBy, include }: any) => {
+      findMany: async ({ where, skip = 0, take, orderBy, include }: any) => {
         let activities = Array.from(db.activities.values());
+        if (where?.userId) {
+          activities = activities.filter((activity) => activity.userId === where.userId);
+        }
         if (orderBy?.createdAt === 'desc') {
           activities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }
@@ -135,9 +150,32 @@ function createPrismaMock(): PrismaMock {
         }
         return slice.map((activity) => cloneActivity(activity));
       },
-      count: async () => db.activities.size,
+      count: async ({ where }: any = {}) => {
+        let activities = Array.from(db.activities.values());
+        if (where?.userId) {
+          activities = activities.filter((activity) => activity.userId === where.userId);
+        }
+        return activities.length;
+      },
       findUnique: async ({ where, include }: any) => {
         const activity = db.activities.get(where.id);
+        if (!activity) {
+          return null;
+        }
+        if (include?.metrics) {
+          return attachMetrics(activity);
+        }
+        return cloneActivity(activity);
+      },
+      findFirst: async ({ where, include }: any) => {
+        let activities = Array.from(db.activities.values());
+        if (where?.id) {
+          activities = activities.filter((activity) => activity.id === where.id);
+        }
+        if (where?.userId) {
+          activities = activities.filter((activity) => activity.userId === where.userId);
+        }
+        const activity = activities[0];
         if (!activity) {
           return null;
         }
@@ -240,6 +278,7 @@ function createPrismaMock(): PrismaMock {
       },
       findMany: async ({ where, include, orderBy }: any) => {
         const targetKey = where?.metricDefinition?.key;
+        const userId = where?.activity?.userId ?? where?.activity?.user?.id;
         let matchingResults = Array.from(db.metricResults.values());
 
         if (typeof targetKey === 'string') {
@@ -252,6 +291,13 @@ function createPrismaMock(): PrismaMock {
           matchingResults = matchingResults.filter(
             (result) => result.metricDefinitionId === definition.id,
           );
+        }
+
+        if (typeof userId === 'string') {
+          matchingResults = matchingResults.filter((result) => {
+            const activity = db.activities.get(result.activityId);
+            return activity?.userId === userId;
+          });
         }
 
         if (orderBy?.activity?.startTime) {
@@ -279,24 +325,45 @@ function createPrismaMock(): PrismaMock {
         });
       },
       findFirst: async ({ where, include }: any) => {
-        const definition = Array.from(db.metricDefinitions.values()).find(
-          (def) => def.key === where.metricDefinition.key,
-        );
-        if (!definition) {
-          return null;
+        let candidates = Array.from(db.metricResults.values());
+        if (typeof where?.activityId === 'string') {
+          candidates = candidates.filter((metric) => metric.activityId === where.activityId);
         }
-        const result = Array.from(db.metricResults.values()).find(
-          (metric) =>
-            metric.activityId === where.activityId &&
-            metric.metricDefinitionId === definition.id,
-        );
+
+        let definition: MetricDefinitionRecord | undefined;
+        if (typeof where?.metricDefinition?.key === 'string') {
+          definition = Array.from(db.metricDefinitions.values()).find(
+            (def) => def.key === where.metricDefinition.key,
+          );
+          if (!definition) {
+            return null;
+          }
+          candidates = candidates.filter(
+            (metric) => metric.metricDefinitionId === definition!.id,
+          );
+        }
+
+        const userId = where?.activity?.userId ?? where?.activity?.user?.id;
+        if (typeof userId === 'string') {
+          candidates = candidates.filter((metric) => {
+            const activity = db.activities.get(metric.activityId);
+            return activity?.userId === userId;
+          });
+        }
+
+        const result = candidates[0];
         if (!result) {
           return null;
         }
+
+        const base: any = { ...result };
         if (include?.metricDefinition) {
-          return { ...result, metricDefinition: { ...definition } };
+          const resolvedDefinition = definition
+            ? { ...definition }
+            : db.metricDefinitions.get(result.metricDefinitionId);
+          base.metricDefinition = resolvedDefinition ? { ...resolvedDefinition } : undefined;
         }
-        return { ...result };
+        return base;
       },
     },
   };

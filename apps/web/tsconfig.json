@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": ".",
-    "types": ["node"],
+    "types": ["node", "next-auth"],
     "plugins": [
       {
         "name": "next"

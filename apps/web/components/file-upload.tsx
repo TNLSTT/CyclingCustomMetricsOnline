@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { UploadCloud } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 import { uploadFitFiles } from '../lib/api';
+import { env } from '../lib/env';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -15,28 +17,34 @@ interface FileUploadProps {
 }
 
 export function FileUpload({ onUploaded }: FileUploadProps) {
+  const { data: session, status: authStatus } = useSession();
   const [files, setFiles] = useState<File[]>([]);
-  const [status, setStatus] =
+  const [uploadStatus, setUploadStatus] =
     useState<'idle' | 'uploading' | 'error' | 'success' | 'partial'>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [results, setResults] = useState<UploadResponse | null>(null);
 
   async function handleUpload() {
+    if (env.authEnabled && authStatus !== 'authenticated') {
+      setUploadStatus('error');
+      setMessage('Please sign in to upload activities.');
+      return;
+    }
     if (files.length === 0) {
       setMessage('Please choose at least one .FIT file to upload.');
-      setStatus('error');
+      setUploadStatus('error');
       return;
     }
     try {
-      setStatus('uploading');
+      setUploadStatus('uploading');
       setMessage(null);
       setResults(null);
-      const response = await uploadFitFiles(files);
+      const response = await uploadFitFiles(files, session?.accessToken);
       setResults(response);
 
       if (response.uploads.length === 0) {
         const failureMessage = response.failures[0]?.error ?? 'Upload failed.';
-        setStatus('error');
+        setUploadStatus('error');
         setMessage(failureMessage);
         return;
       }
@@ -48,11 +56,11 @@ export function FileUpload({ onUploaded }: FileUploadProps) {
           ? `Uploaded ${successCount} file${successCount > 1 ? 's' : ''}. Ready to compute metrics.`
           : `Uploaded ${successCount} file${successCount > 1 ? 's' : ''}, ${failureCount} failed.`;
 
-      setStatus(failureCount === 0 ? 'success' : 'partial');
+      setUploadStatus(failureCount === 0 ? 'success' : 'partial');
       setMessage(successMessage);
       onUploaded?.(response.uploads.map((upload) => upload.activityId));
     } catch (error) {
-      setStatus('error');
+      setUploadStatus('error');
       setMessage((error as Error).message);
     }
   }
@@ -77,14 +85,19 @@ export function FileUpload({ onUploaded }: FileUploadProps) {
           onChange={(event) => {
             const selected = Array.from(event.target.files ?? []);
             setFiles(selected);
-            setStatus('idle');
+            setUploadStatus('idle');
             setMessage(null);
             setResults(null);
           }}
         />
         <div className="flex items-center space-x-2">
-          <Button onClick={handleUpload} disabled={status === 'uploading'}>
-            {status === 'uploading' ? 'Uploading…' : 'Upload FIT file'}
+          <Button
+            onClick={handleUpload}
+            disabled={
+              uploadStatus === 'uploading' || (env.authEnabled && authStatus !== 'authenticated')
+            }
+          >
+            {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload FIT file'}
           </Button>
           {files.length > 0 ? (
             <span className="text-xs text-muted-foreground">
@@ -94,12 +107,12 @@ export function FileUpload({ onUploaded }: FileUploadProps) {
             </span>
           ) : null}
         </div>
-        {status !== 'idle' && message ? (
-          <Alert variant={status === 'error' ? 'destructive' : 'default'}>
+        {uploadStatus !== 'idle' && message ? (
+          <Alert variant={uploadStatus === 'error' ? 'destructive' : 'default'}>
             <AlertTitle>
-              {status === 'error'
+              {uploadStatus === 'error'
                 ? 'Upload failed'
-                : status === 'partial'
+                : uploadStatus === 'partial'
                   ? 'Upload complete with issues'
                   : 'Upload complete'}
             </AlertTitle>

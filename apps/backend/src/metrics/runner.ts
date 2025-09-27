@@ -60,11 +60,11 @@ function mapSamples(samples: {
   }));
 }
 
-export async function runMetrics(activityId: string, metricKeys?: string[]) {
+export async function runMetrics(activityId: string, metricKeys?: string[], userId?: string) {
   const modules = selectMetricModules(metricKeys);
 
-  const activity = await prisma.activity.findUnique({
-    where: { id: activityId },
+  const activity = await prisma.activity.findFirst({
+    where: { id: activityId, ...(userId ? { userId } : {}) },
   });
 
   if (!activity) {
