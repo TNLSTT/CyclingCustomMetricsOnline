@@ -14,9 +14,10 @@ import type { UploadResponse } from '../types/activity';
 
 interface FileUploadProps {
   onUploaded?: (activityIds: string[]) => void;
+  onAuthRequired?: () => void;
 }
 
-export function FileUpload({ onUploaded }: FileUploadProps) {
+export function FileUpload({ onUploaded, onAuthRequired }: FileUploadProps) {
   const { data: session, status: authStatus } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] =
@@ -26,6 +27,7 @@ export function FileUpload({ onUploaded }: FileUploadProps) {
 
   async function handleUpload() {
     if (env.authEnabled && authStatus !== 'authenticated') {
+      onAuthRequired?.();
       setUploadStatus('error');
       setMessage('Please sign in to upload activities.');
       return;
@@ -93,9 +95,7 @@ export function FileUpload({ onUploaded }: FileUploadProps) {
         <div className="flex items-center space-x-2">
           <Button
             onClick={handleUpload}
-            disabled={
-              uploadStatus === 'uploading' || (env.authEnabled && authStatus !== 'authenticated')
-            }
+            disabled={uploadStatus === 'uploading'}
           >
             {uploadStatus === 'uploading' ? 'Uploading…' : 'Upload FIT file'}
           </Button>

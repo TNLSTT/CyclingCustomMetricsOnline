@@ -8,6 +8,7 @@ import { formatDuration } from '../../lib/utils';
 import type { PaginatedActivities } from '../../types/activity';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 
@@ -36,11 +37,16 @@ export default async function ActivitiesPage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Activities</h1>
-          <p className="text-muted-foreground">
-            Recently uploaded FIT rides with computed metric summaries.
-          </p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Activities</h1>
+            <p className="text-muted-foreground">
+              Recently uploaded FIT rides with computed metric summaries.
+            </p>
+          </div>
+          <Button asChild variant="secondary">
+            <Link href="/activities/insights">View activity insights</Link>
+          </Button>
         </div>
         <Card>
           <CardHeader>

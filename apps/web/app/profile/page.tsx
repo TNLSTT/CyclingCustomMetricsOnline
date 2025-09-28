@@ -61,7 +61,8 @@ export default async function ProfilePage() {
         <div>
           <h1 className="text-3xl font-bold">Profile</h1>
           <p className="text-muted-foreground">
-            Update how your name, photo, and bio appear across Cycling Custom Metrics.
+            Personalize your presence with location, discipline, signature rides, and the stories behind
+            your metrics.
           </p>
         </div>
         <ProfileForm profile={profile} authToken={session?.accessToken} />
