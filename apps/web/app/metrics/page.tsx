@@ -8,11 +8,12 @@ import type {
   MetricDefinition,
 } from '../../types/activity';
 import type { AdaptationEdgesResponse } from '../../types/adaptation';
+import { AdaptationDeepestBlocks } from '../../components/adaptation-deepest-blocks';
+import { IntervalEfficiencyHistoryChart } from '../../components/interval-efficiency-history-chart';
+import { MetricsDefinitionBrowser } from '../../components/metrics-definition-browser';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { IntervalEfficiencyHistoryChart } from '../../components/interval-efficiency-history-chart';
-import { AdaptationDeepestBlocks } from '../../components/adaptation-deepest-blocks';
 
 async function getMetricDefinitions(token?: string): Promise<MetricDefinition[]> {
   const headers: HeadersInit | undefined = token
@@ -81,34 +82,11 @@ export default async function MetricsPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Metric registry</h1>
           <p className="text-muted-foreground">
-            Each metric is self-contained with a definition, compute function, and Vitest coverage.
+            Each metric is self-contained with a definition, compute function, and Vitest coverage. Filter and
+            copy keys to accelerate experimentation in your analytics pipeline.
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {definitions.map((definition) => (
-            <Card key={definition.key}>
-              <CardHeader>
-                <CardTitle className="text-base font-semibold">
-                  {definition.name}
-                  <span className="ml-2 text-xs text-muted-foreground">v{definition.version}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>{definition.description}</p>
-                {definition.units ? (
-                  <p>
-                    <span className="font-medium text-foreground">Units:</span> {definition.units}
-                  </p>
-                ) : null}
-                {definition.computeConfig ? (
-                  <pre className="rounded-md bg-muted p-3 text-xs">
-                    {JSON.stringify(definition.computeConfig, null, 2)}
-                  </pre>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <MetricsDefinitionBrowser definitions={definitions} />
         <div className="space-y-4">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold">Interval efficiency trends</h2>

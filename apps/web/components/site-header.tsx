@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { signIn, signOut, useSession } from 'next-auth/react';
 
 import { env } from '../lib/env';
+import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 
 const baseNavItems = [
@@ -55,20 +56,28 @@ export function SiteHeader() {
         <Link href="/" className="text-lg font-semibold">
           Cycling Custom Metrics
         </Link>
-        <nav className="flex items-center space-x-4 text-sm font-medium">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                pathname === item.href
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex items-center gap-1 text-sm font-medium">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'relative rounded-md px-3 py-2 transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {item.label}
+                {isActive ? (
+                  <span className="absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-primary" aria-hidden />
+                ) : null}
+              </Link>
+            );
+          })}
         </nav>
         <div>{env.authEnabled ? <AuthControls /> : null}</div>
       </div>
