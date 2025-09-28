@@ -110,6 +110,12 @@ describe('Activities API flow', () => {
     expect(Array.isArray(historyResponse.body.points)).toBe(true);
     expect(historyResponse.body.points.length).toBeGreaterThan(0);
 
+    const adaptationResponse = await request(app).get(
+      '/api/metrics/adaptation-edges/deepest-blocks',
+    );
+    expect(adaptationResponse.status).toBe(200);
+    expect(Array.isArray(adaptationResponse.body.windowSummaries)).toBe(true);
+
     expect(unlinkSpy).toHaveBeenCalledTimes(2);
   });
 });

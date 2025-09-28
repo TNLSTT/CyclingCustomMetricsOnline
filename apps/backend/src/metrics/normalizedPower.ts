@@ -1,4 +1,5 @@
 import type { MetricModule, MetricSample } from './types.js';
+import { computeAveragePower, computeNormalizedPower, extractPowerSamples } from '../utils/power.js';
 
 const WINDOW_SECONDS = 30;
 const COASTING_THRESHOLD_WATTS = 5;
@@ -6,41 +7,6 @@ const COASTING_THRESHOLD_WATTS = 5;
 function toFixedNumber(value: number, fractionDigits: number) {
   const factor = 10 ** fractionDigits;
   return Math.round(value * factor) / factor;
-}
-
-function computeRollingAverages(
-  samples: MetricSample[],
-  windowSize: number,
-): Array<{ t: number; rollingAvg: number }> {
-  if (windowSize <= 1) {
-    return samples
-      .filter((sample) => sample.power != null)
-      .map((sample) => ({ t: sample.t, rollingAvg: sample.power as number }));
-  }
-
-  const rolling: Array<{ t: number; rollingAvg: number }> = [];
-  const window: number[] = [];
-  let sum = 0;
-
-  for (const sample of samples) {
-    if (sample.power == null) {
-      continue;
-    }
-    const power = sample.power;
-    window.push(power);
-    sum += power;
-    if (window.length > windowSize) {
-      const removed = window.shift();
-      if (removed != null) {
-        sum -= removed;
-      }
-    }
-    if (window.length === windowSize) {
-      rolling.push({ t: sample.t, rollingAvg: sum / windowSize });
-    }
-  }
-
-  return rolling;
 }
 
 export const normalizedPowerMetric: MetricModule = {
@@ -61,10 +27,7 @@ export const normalizedPowerMetric: MetricModule = {
     const sampleRate = activity.sampleRateHz && activity.sampleRateHz > 0 ? activity.sampleRateHz : 1;
     const windowSize = Math.max(1, Math.round(WINDOW_SECONDS * sampleRate));
 
-    const powerSamples = samples
-      .filter((sample) => sample.power != null)
-      .sort((a, b) => a.t - b.t);
-
+    const powerSamples = extractPowerSamples(samples);
     const validCount = powerSamples.length;
     const totalSamples = samples.length;
 
@@ -84,20 +47,10 @@ export const normalizedPowerMetric: MetricModule = {
       };
     }
 
-    const rolling = computeRollingAverages(powerSamples, windowSize);
+    const { normalizedPower, rolling } = computeNormalizedPower(powerSamples, windowSize);
+    const averagePower = computeAveragePower(powerSamples) ?? 0;
 
-    const powerSum = powerSamples.reduce((sum, sample) => sum + (sample.power ?? 0), 0);
-    const averagePower = powerSum / validCount;
-
-    let normalizedPower: number | null = null;
-    if (rolling.length > 0) {
-      const meanFourth =
-        rolling.reduce((sum, entry) => sum + entry.rollingAvg ** 4, 0) / rolling.length;
-      normalizedPower = meanFourth > 0 ? meanFourth ** 0.25 : 0;
-    }
-
-    const coastingCount = powerSamples.filter((sample) => (sample.power ?? 0) <= COASTING_THRESHOLD_WATTS)
-      .length;
+    const coastingCount = powerSamples.filter((sample) => sample.power <= COASTING_THRESHOLD_WATTS).length;
 
     const summary = {
       normalized_power_w:
