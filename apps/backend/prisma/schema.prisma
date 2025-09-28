@@ -52,6 +52,8 @@ model ActivitySample {
   speed      Float?
   elevation  Float?
   temperature Float?
+  latitude   Float?
+  longitude  Float?
 
   @@index([activityId])
   @@index([activityId, t])

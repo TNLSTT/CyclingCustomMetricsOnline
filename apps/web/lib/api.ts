@@ -8,6 +8,7 @@ import type {
   UploadResponse,
   IntervalEfficiencyResponse,
   IntervalEfficiencyHistoryResponse,
+  ActivityTrackResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
 
@@ -79,6 +80,10 @@ export async function fetchMetricResult(
     undefined,
     authToken,
   );
+}
+
+export async function fetchActivityTrack(activityId: string, authToken?: string) {
+  return apiFetch<ActivityTrackResponse>(`/activities/${activityId}/track`, undefined, authToken);
 }
 
 export async function fetchIntervalEfficiency(activityId: string, authToken?: string) {

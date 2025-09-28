@@ -6,6 +6,8 @@ export interface NormalizedActivitySample {
   speed?: number | null;
   elevation?: number | null;
   temperature?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface NormalizedActivity {

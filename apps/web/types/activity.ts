@@ -14,6 +14,21 @@ export interface ActivitySummary {
   metrics: MetricSummary[];
 }
 
+export interface ActivityTrackPoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface ActivityTrackResponse {
+  points: ActivityTrackPoint[];
+  bounds: {
+    minLatitude: number;
+    maxLatitude: number;
+    minLongitude: number;
+    maxLongitude: number;
+  };
+}
+
 export interface PaginatedActivities {
   data: ActivitySummary[];
   page: number;

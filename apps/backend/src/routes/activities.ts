@@ -46,6 +46,33 @@ function mapActivity(activity: ActivityWithMetrics) {
   };
 }
 
+type TrackPoint = { latitude: number; longitude: number };
+
+function simplifyTrack(points: TrackPoint[], maxPoints = 1000): TrackPoint[] {
+  if (points.length <= maxPoints) {
+    return points;
+  }
+
+  const step = Math.ceil(points.length / maxPoints);
+  const simplified: TrackPoint[] = [];
+
+  for (let index = 0; index < points.length; index += step) {
+    simplified.push(points[index]!);
+  }
+
+  const lastPoint = points[points.length - 1]!;
+  const lastSimplified = simplified[simplified.length - 1];
+  if (
+    !lastSimplified ||
+    lastSimplified.latitude !== lastPoint.latitude ||
+    lastSimplified.longitude !== lastPoint.longitude
+  ) {
+    simplified.push(lastPoint);
+  }
+
+  return simplified;
+}
+
 export const activitiesRouter = express.Router();
 
 activitiesRouter.get(
@@ -109,6 +136,56 @@ activitiesRouter.get(
     }
 
     res.json(mapActivity(activity));
+  }),
+);
+
+activitiesRouter.get(
+  '/:id/track',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const samples = await prisma.activitySample.findMany({
+      where: {
+        activityId: req.params.id,
+        latitude: { not: null },
+        longitude: { not: null },
+        ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
+      },
+      orderBy: { t: 'asc' },
+      select: { latitude: true, longitude: true },
+    });
+
+    const trackPoints = samples
+      .map((sample) => {
+        const { latitude, longitude } = sample;
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+          return null;
+        }
+        return { latitude, longitude } as TrackPoint;
+      })
+      .filter((point): point is TrackPoint => point !== null);
+
+    if (trackPoints.length === 0) {
+      res.status(404).json({ error: 'Track data not available' });
+      return;
+    }
+
+    const simplified = simplifyTrack(trackPoints, 1000);
+    const latitudes = simplified.map((point) => point.latitude);
+    const longitudes = simplified.map((point) => point.longitude);
+
+    res.json({
+      points: simplified,
+      bounds: {
+        minLatitude: Math.min(...latitudes),
+        maxLatitude: Math.max(...latitudes),
+        minLongitude: Math.min(...longitudes),
+        maxLongitude: Math.max(...longitudes),
+      },
+    });
   }),
 );
 
