@@ -3,6 +3,7 @@ import express from 'express';
 
 import { env } from './env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { authRouter } from './routes/auth.js';
 import { apiRouter } from './routes/index.js';
 
 export function createApp() {
@@ -21,6 +22,7 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
+  app.use('/auth', authRouter);
   app.use('/api', apiRouter);
 
   app.use(notFound);
