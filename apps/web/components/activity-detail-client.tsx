@@ -23,6 +23,7 @@ interface ActivityDetailClientProps {
   initialHcsr?: MetricResultDetail | null;
   initialIntervalEfficiency?: IntervalEfficiencyResponse | null;
   initialNormalizedPower?: MetricResultDetail | null;
+  initialLateAerobicEfficiency?: MetricResultDetail | null;
 }
 
 type HcsrSummary = {
@@ -59,6 +60,16 @@ type NormalizedPowerSeries = Array<{
   t: number;
   rolling_avg_power_w: number;
 }>;
+
+type LateAerobicSummary = {
+  wattsPerBpm?: number | null;
+  averagePower?: number | null;
+  averageHeartRate?: number | null;
+  validSamples?: number | null;
+  totalWindowSamples?: number | null;
+  analyzedWindowSeconds?: number | null;
+  requestedWindowSeconds?: number | null;
+};
 
 function parseHcsrSummary(metric: MetricResultDetail | null | undefined): HcsrSummary {
   if (!metric) {
@@ -134,11 +145,31 @@ function parseNormalizedPowerSeries(
   });
 }
 
+function parseLateAerobicSummary(metric: MetricResultDetail | null | undefined): LateAerobicSummary {
+  if (!metric) {
+    return {};
+  }
+  const summary = metric.summary as Record<string, unknown>;
+  const readNumber = (key: string) =>
+    typeof summary[key] === 'number' ? (summary[key] as number) : null;
+
+  return {
+    wattsPerBpm: readNumber('watts_per_bpm'),
+    averagePower: readNumber('average_power_w'),
+    averageHeartRate: readNumber('average_heart_rate_bpm'),
+    validSamples: readNumber('valid_sample_count'),
+    totalWindowSamples: readNumber('total_window_sample_count'),
+    analyzedWindowSeconds: readNumber('analyzed_window_seconds'),
+    requestedWindowSeconds: readNumber('requested_window_seconds'),
+  };
+}
+
 export function ActivityDetailClient({
   activity,
   initialHcsr,
   initialIntervalEfficiency,
   initialNormalizedPower,
+  initialLateAerobicEfficiency,
 }: ActivityDetailClientProps) {
   const { data: session } = useSession();
   const [isPending, startTransition] = useTransition();
@@ -150,11 +181,15 @@ export function ActivityDetailClient({
   const [normalizedMetric, setNormalizedMetric] = useState<MetricResultDetail | null | undefined>(
     initialNormalizedPower,
   );
+  const [lateAerobicMetric, setLateAerobicMetric] = useState<MetricResultDetail | null | undefined>(
+    initialLateAerobicEfficiency,
+  );
 
   const hcsrSummary = parseHcsrSummary(metric ?? null);
   const hcsrSeries = parseHcsrSeries(metric ?? null);
   const normalizedSummary = parseNormalizedPowerSummary(normalizedMetric ?? null);
   const normalizedSeries = parseNormalizedPowerSeries(normalizedMetric ?? null);
+  const lateAerobicSummary = parseLateAerobicSummary(lateAerobicMetric ?? null);
   const intervalSummaries = intervalEfficiency?.intervals ?? [];
   const hasIntervalData = intervalSummaries.length > 0;
 
@@ -183,17 +218,20 @@ export function ActivityDetailClient({
       try {
         await computeMetrics(
           activity.id,
-          ['hcsr', 'interval-efficiency', 'normalized-power'],
+          ['hcsr', 'interval-efficiency', 'normalized-power', 'late-aerobic-efficiency'],
           session?.accessToken,
         );
-        const [latestHcsr, latestIntervalEfficiency, latestNormalized] = await Promise.all([
-          fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
-          fetchIntervalEfficiency(activity.id, session?.accessToken),
-          fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
-        ]);
+        const [latestHcsr, latestIntervalEfficiency, latestNormalized, latestLateAerobic] =
+          await Promise.all([
+            fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
+            fetchIntervalEfficiency(activity.id, session?.accessToken),
+            fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
+            fetchMetricResult(activity.id, 'late-aerobic-efficiency', session?.accessToken),
+          ]);
         setMetric(latestHcsr);
         setIntervalEfficiency(latestIntervalEfficiency);
         setNormalizedMetric(latestNormalized);
+        setLateAerobicMetric(latestLateAerobic);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -211,6 +249,27 @@ export function ActivityDetailClient({
   const rollingWindowsDisplay = formatNumber(normalizedSummary.rollingWindowCount);
   const windowSecondsDisplay = formatNumber(normalizedSummary.windowSeconds);
   const normalizedSeriesPreview = normalizedSeries.slice(-10);
+  const lateWattsPerBpmDisplay = formatNumber(lateAerobicSummary.wattsPerBpm, 3);
+  const lateAveragePowerDisplay = formatNumber(lateAerobicSummary.averagePower, 1);
+  const lateAverageHrDisplay = formatNumber(lateAerobicSummary.averageHeartRate, 1);
+  const lateCoverageDisplay = (() => {
+    const valid = lateAerobicSummary.validSamples ?? null;
+    const total = lateAerobicSummary.totalWindowSamples ?? null;
+    if (valid == null || total == null || total === 0) {
+      return '—';
+    }
+    const ratio = valid / total;
+    return `${formatNumber(ratio * 100, 1)}%`;
+  })();
+  const lateWindowSecondsDisplay = formatNumber(lateAerobicSummary.analyzedWindowSeconds);
+  const lateWindowMinutesDisplay =
+    lateAerobicSummary.analyzedWindowSeconds != null
+      ? formatNumber(lateAerobicSummary.analyzedWindowSeconds / 60, 1)
+      : '—';
+  const lateRequestedMinutesDisplay =
+    lateAerobicSummary.requestedWindowSeconds != null
+      ? formatNumber(lateAerobicSummary.requestedWindowSeconds / 60, 1)
+      : '—';
 
   return (
     <div className="space-y-6">
@@ -309,6 +368,53 @@ export function ActivityDetailClient({
           description={`30 s windows (sample: ${windowSecondsDisplay}s)`}
         />
       </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricSummaryCard
+          title="Late-ride W/HR"
+          value={lateWattsPerBpmDisplay}
+          units="W/bpm"
+          description="Power per beat in the durability window"
+        />
+        <MetricSummaryCard
+          title="Late-ride avg power"
+          value={lateAveragePowerDisplay}
+          units="W"
+          description="Mean power between -35 and -5 minutes"
+        />
+        <MetricSummaryCard
+          title="Late-ride avg HR"
+          value={lateAverageHrDisplay}
+          units="bpm"
+          description="Mean heart rate between -35 and -5 minutes"
+        />
+        <MetricSummaryCard
+          title="Valid data coverage"
+          value={lateCoverageDisplay}
+          description="Portion of window with both power & HR"
+        />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Late-ride aerobic efficiency window</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            Requested window: {lateRequestedMinutesDisplay !== '—'
+              ? `${lateRequestedMinutesDisplay} min`
+              : '—'}{' '}
+            (excludes final 5 min)
+          </p>
+          <p>
+            Analyzed window: {lateWindowMinutesDisplay !== '—'
+              ? `${lateWindowMinutesDisplay} min`
+              : '—'} ({lateWindowSecondsDisplay} s)
+          </p>
+          <p>
+            Valid samples: {formatNumber(lateAerobicSummary.validSamples)} /{' '}
+            {formatNumber(lateAerobicSummary.totalWindowSamples)}
+          </p>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>HR-to-Cadence Scaling Ratio buckets</CardTitle>

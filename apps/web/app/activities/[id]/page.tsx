@@ -57,6 +57,24 @@ async function getNormalizedPowerMetric(
   return (await response.json()) as MetricResultDetail;
 }
 
+async function getLateAerobicMetric(id: string, token?: string): Promise<MetricResultDetail | null> {
+  const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
+  const response = await fetch(
+    `${env.internalApiUrl}/activities/${id}/metrics/late-aerobic-efficiency`,
+    {
+      cache: 'no-store',
+      headers,
+    },
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('Failed to load late-ride aerobic efficiency metric');
+  }
+  return (await response.json()) as MetricResultDetail;
+}
+
 async function getIntervalEfficiency(
   id: string,
   token?: string,
@@ -89,11 +107,12 @@ export default async function ActivityDetailPage({
   }
 
   const token = session?.accessToken;
-  const [activity, hcsr, intervalEfficiency, normalizedPower] = await Promise.all([
+  const [activity, hcsr, intervalEfficiency, normalizedPower, lateAerobic] = await Promise.all([
     getActivity(params.id, token),
     getHcsrMetric(params.id, token),
     getIntervalEfficiency(params.id, token),
     getNormalizedPowerMetric(params.id, token),
+    getLateAerobicMetric(params.id, token),
   ]);
 
   return (
@@ -102,6 +121,7 @@ export default async function ActivityDetailPage({
       initialHcsr={hcsr}
       initialIntervalEfficiency={intervalEfficiency}
       initialNormalizedPower={normalizedPower}
+      initialLateAerobicEfficiency={lateAerobic}
     />
   );
 }
