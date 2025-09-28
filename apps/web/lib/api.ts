@@ -121,7 +121,18 @@ export async function fetchProfile(authToken?: string) {
 }
 
 export async function updateProfile(
-  updates: { displayName: string | null; avatarUrl: string | null; bio: string | null },
+  updates: {
+    displayName: string | null;
+    avatarUrl: string | null;
+    bio: string | null;
+    location: string | null;
+    primaryDiscipline: string | null;
+    trainingFocus: string | null;
+    weeklyGoalHours: number | null;
+    websiteUrl: string | null;
+    instagramHandle: string | null;
+    achievements: string | null;
+  },
   authToken?: string,
 ) {
   return apiFetch<Profile>(

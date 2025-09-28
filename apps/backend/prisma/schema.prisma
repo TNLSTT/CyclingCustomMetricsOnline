@@ -24,6 +24,13 @@ model Profile {
   displayName String?
   avatarUrl   String?
   bio         String?
+  location    String?
+  primaryDiscipline String?
+  trainingFocus String?
+  weeklyGoalHours Int?
+  websiteUrl  String?
+  instagramHandle String?
+  achievements String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

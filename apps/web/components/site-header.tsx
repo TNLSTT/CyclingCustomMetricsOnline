@@ -10,6 +10,7 @@ import { Button } from './ui/button';
 const baseNavItems = [
   { href: '/', label: 'Home' },
   { href: '/activities', label: 'Activities' },
+  { href: '/activities/trends', label: 'Trends' },
   { href: '/metrics', label: 'Metrics' },
 ];
 
