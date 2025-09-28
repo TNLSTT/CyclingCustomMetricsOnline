@@ -9,10 +9,15 @@ import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 
-const paginationSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
-});
+const paginationSchema = z
+  .object({
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().min(1).max(500).default(10),
+  })
+  .transform(({ page, pageSize }) => ({
+    page,
+    pageSize: Math.min(pageSize, 500),
+  }));
 
 const computeSchema = z
   .object({
