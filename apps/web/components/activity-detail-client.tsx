@@ -1,14 +1,20 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
-import { computeMetrics, fetchIntervalEfficiency, fetchMetricResult } from '../lib/api';
+import {
+  computeMetrics,
+  fetchActivityTrack,
+  fetchIntervalEfficiency,
+  fetchMetricResult,
+} from '../lib/api';
 import type {
   ActivitySummary,
   IntervalEfficiencyResponse,
   MetricResultDetail,
+  ActivityTrackPoint,
 } from '../types/activity';
 import { HcsrChart } from './hcsr-chart';
 import { IntervalEfficiencyChart } from './interval-efficiency-chart';
@@ -17,6 +23,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { RideTrackMap } from './ride-track-map';
 
 interface ActivityDetailClientProps {
   activity: ActivitySummary;
@@ -184,6 +191,9 @@ export function ActivityDetailClient({
   const [lateAerobicMetric, setLateAerobicMetric] = useState<MetricResultDetail | null | undefined>(
     initialLateAerobicEfficiency,
   );
+  const [trackPoints, setTrackPoints] = useState<ActivityTrackPoint[]>([]);
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const [isTrackLoading, setIsTrackLoading] = useState<boolean>(true);
 
   const hcsrSummary = parseHcsrSummary(metric ?? null);
   const hcsrSeries = parseHcsrSeries(metric ?? null);
@@ -271,6 +281,42 @@ export function ActivityDetailClient({
       ? formatNumber(lateAerobicSummary.requestedWindowSeconds / 60, 1)
       : '—';
 
+  useEffect(() => {
+    let cancelled = false;
+    setIsTrackLoading(true);
+    setTrackError(null);
+
+    fetchActivityTrack(activity.id, session?.accessToken)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setTrackPoints(response.points);
+        setTrackError(null);
+      })
+      .catch((err) => {
+        if (cancelled) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : 'Failed to load ride map';
+        if (message === 'Track data not available') {
+          setTrackError('No GPS data available for this ride.');
+        } else {
+          setTrackError(message);
+        }
+        setTrackPoints([]);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsTrackLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activity.id, session?.accessToken]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -300,6 +346,28 @@ export function ActivityDetailClient({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle>Ride map</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[400px] p-0">
+          {isTrackLoading ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Loading ride map…
+            </div>
+          ) : trackError ? (
+            <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
+              {trackError}
+            </div>
+          ) : trackPoints.length > 0 ? (
+            <RideTrackMap points={trackPoints} className="h-full w-full" />
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
+              No GPS data available for this ride.
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricSummaryCard
           title="Slope"

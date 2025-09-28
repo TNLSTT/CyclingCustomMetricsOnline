@@ -195,6 +195,8 @@ function createPrismaMock(): PrismaMock {
           list.push({
             ...entry,
             temperature: entry.temperature ?? null,
+            latitude: entry.latitude ?? null,
+            longitude: entry.longitude ?? null,
           });
           db.samples.set(entry.activityId, list);
         }

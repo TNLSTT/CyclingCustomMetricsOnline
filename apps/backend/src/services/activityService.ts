@@ -34,6 +34,8 @@ function buildSampleRows(
     speed: sample.speed ?? null,
     elevation: sample.elevation ?? null,
     temperature: sample.temperature ?? null,
+    latitude: sample.latitude ?? null,
+    longitude: sample.longitude ?? null,
   }));
 }
 

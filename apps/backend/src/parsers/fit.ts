@@ -14,6 +14,8 @@ type FitRecord = {
   enhanced_altitude?: number;
   altitude?: number;
   temperature?: number;
+  position_lat?: number;
+  position_long?: number;
 };
 
 type FitParserCallbackData = { records?: FitRecord[] };
@@ -97,14 +99,32 @@ function sanitizeInt(value: unknown, min: number, max: number): number | null {
   return Math.round(value);
 }
 
-function sanitizeFloat(value: unknown, min: number, max: number): number | null {
+function sanitizeFloat(
+  value: unknown,
+  min: number,
+  max: number,
+  fractionDigits = 3,
+): number | null {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return null;
   }
   if (value < min || value > max) {
     return null;
   }
-  return Number.parseFloat(value.toFixed(3));
+  return Number.parseFloat(value.toFixed(fractionDigits));
+}
+
+function sanitizeCoordinate(value: unknown, min: number, max: number): number | null {
+  return sanitizeFloat(value, min, max, 6);
+}
+
+const SEMICIRCLES_TO_DEGREES = 180 / 2 ** 31;
+
+function convertSemicirclesToDegrees(value: unknown): number | null {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+  return value * SEMICIRCLES_TO_DEGREES;
 }
 
 function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedActivitySample {
@@ -116,6 +136,8 @@ function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedAct
     speed: sample.speed ?? null,
     elevation: sample.elevation ?? null,
     temperature: sample.temperature ?? null,
+    latitude: sample.latitude ?? null,
+    longitude: sample.longitude ?? null,
   };
 }
 
@@ -154,6 +176,16 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
       9000,
     );
     const temperature = sanitizeFloat(record.temperature, -60, 90);
+    const latitude = sanitizeCoordinate(
+      convertSemicirclesToDegrees(record.position_lat),
+      -90,
+      90,
+    );
+    const longitude = sanitizeCoordinate(
+      convertSemicirclesToDegrees(record.position_long),
+      -180,
+      180,
+    );
 
     samplesBySecond.set(t, {
       t,
@@ -163,6 +195,8 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
       speed,
       elevation,
       temperature,
+      latitude,
+      longitude,
     });
   }
 
@@ -192,6 +226,8 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
           speed: null,
           elevation: null,
           temperature: null,
+          latitude: null,
+          longitude: null,
         });
       }
     }
