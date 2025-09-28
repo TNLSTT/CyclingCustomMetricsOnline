@@ -11,6 +11,7 @@ import type {
   ActivityTrackResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
+import type { AdaptationEdgesResponse } from '../types/adaptation';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -100,6 +101,10 @@ export async function fetchIntervalEfficiencyHistory(authToken?: string) {
     undefined,
     authToken,
   );
+}
+
+export async function fetchAdaptationEdges(authToken?: string) {
+  return apiFetch<AdaptationEdgesResponse>('/analytics/adaptation-edges', undefined, authToken);
 }
 
 export async function deleteActivity(activityId: string, authToken?: string) {

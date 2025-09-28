@@ -11,6 +11,7 @@ const baseNavItems = [
   { href: '/', label: 'Home' },
   { href: '/activities', label: 'Activities' },
   { href: '/activities/trends', label: 'Trends' },
+  { href: '/analytics/adaptation-edges', label: 'Adaptation edges' },
   { href: '/metrics', label: 'Metrics' },
 ];
 

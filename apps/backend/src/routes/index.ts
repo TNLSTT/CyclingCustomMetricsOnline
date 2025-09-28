@@ -3,6 +3,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 
 import { activitiesRouter } from './activities.js';
+import { analyticsRouter } from './analytics.js';
 import { authRouter } from './auth.js';
 import { metricsRouter } from './metrics.js';
 import { profileRouter } from './profile.js';
@@ -15,3 +16,4 @@ apiRouter.use('/upload', requireAuth, uploadRouter);
 apiRouter.use('/activities', requireAuth, activitiesRouter);
 apiRouter.use('/metrics', requireAuth, metricsRouter);
 apiRouter.use('/profile', requireAuth, profileRouter);
+apiRouter.use('/analytics', requireAuth, analyticsRouter);
