@@ -5,6 +5,7 @@ import { listMetricDefinitions } from '../metrics/registry.js';
 import { prisma } from '../prisma.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 import { logger } from '../logger.js';
+import { computeAdaptationEdges } from '../services/adaptationEdgesService.js';
 
 type IntervalEfficiencyHistoryRow = {
   activityId: string;
@@ -140,6 +141,20 @@ metricsRouter.get(
       });
     } catch (error) {
       logger.error({ err: error }, 'Failed to load metric history');
+      throw error;
+    }
+  }),
+);
+
+metricsRouter.get(
+  '/adaptation-edges/deepest-blocks',
+  asyncHandler(async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const analysis = await computeAdaptationEdges(userId);
+      res.json(analysis);
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to compute adaptation edges');
       throw error;
     }
   }),

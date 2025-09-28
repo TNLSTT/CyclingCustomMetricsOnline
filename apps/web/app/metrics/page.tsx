@@ -7,10 +7,12 @@ import type {
   IntervalEfficiencyHistoryResponse,
   MetricDefinition,
 } from '../../types/activity';
+import type { AdaptationEdgesResponse } from '../../types/adaptation';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { IntervalEfficiencyHistoryChart } from '../../components/interval-efficiency-history-chart';
+import { AdaptationDeepestBlocks } from '../../components/adaptation-deepest-blocks';
 
 async function getMetricDefinitions(token?: string): Promise<MetricDefinition[]> {
   const headers: HeadersInit | undefined = token
@@ -45,6 +47,22 @@ async function getIntervalEfficiencyHistory(
   return (await response.json()) as IntervalEfficiencyHistoryResponse;
 }
 
+async function getAdaptationEdges(token?: string): Promise<AdaptationEdgesResponse> {
+  const headers: HeadersInit | undefined = token
+    ? { Authorization: `Bearer ${token}` }
+    : undefined;
+  const response = await fetch(`${env.internalApiUrl}/metrics/adaptation-edges/deepest-blocks`, {
+    cache: 'no-store',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to load adaptation edges');
+  }
+
+  return (await response.json()) as AdaptationEdgesResponse;
+}
+
 export default async function MetricsPage() {
   const session = await getServerAuthSession();
   if (env.authEnabled && !session) {
@@ -52,9 +70,10 @@ export default async function MetricsPage() {
   }
 
   try {
-    const [definitions, history] = await Promise.all([
+    const [definitions, history, adaptationEdges] = await Promise.all([
       getMetricDefinitions(session?.accessToken),
       getIntervalEfficiencyHistory(session?.accessToken),
+      getAdaptationEdges(session?.accessToken),
     ]);
 
     return (
@@ -173,6 +192,7 @@ export default async function MetricsPage() {
             </CardContent>
           </Card>
         </div>
+        <AdaptationDeepestBlocks analysis={adaptationEdges} />
       </div>
     );
   } catch (error) {

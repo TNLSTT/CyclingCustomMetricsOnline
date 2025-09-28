@@ -11,6 +11,7 @@ import type {
   ActivityTrackResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
+import type { AdaptationEdgesResponse } from '../types/adaptation';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -97,6 +98,14 @@ export async function fetchIntervalEfficiency(activityId: string, authToken?: st
 export async function fetchIntervalEfficiencyHistory(authToken?: string) {
   return apiFetch<IntervalEfficiencyHistoryResponse>(
     '/metrics/interval-efficiency/history',
+    undefined,
+    authToken,
+  );
+}
+
+export async function fetchAdaptationEdges(authToken?: string) {
+  return apiFetch<AdaptationEdgesResponse>(
+    '/metrics/adaptation-edges/deepest-blocks',
     undefined,
     authToken,
   );
