@@ -6,6 +6,10 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgres://localhost:5432/test';
 }
 
+if (!process.env.AUTH_ENABLED) {
+  process.env.AUTH_ENABLED = 'true';
+}
+
 if (!process.env.NEXTAUTH_SECRET) {
   process.env.NEXTAUTH_SECRET = 'test-secret';
 }

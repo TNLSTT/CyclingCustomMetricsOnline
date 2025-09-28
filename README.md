@@ -8,7 +8,7 @@ Cycling Custom Metrics is a full-stack TypeScript application that ingests Garmi
 - **Garmin FIT ingestion** using `fit-file-parser` with resampling to 1 Hz, forward filling of small gaps, and sample sanitation.
 - **Extensible metric engine** – add a single file under `apps/backend/src/metrics` to define new metrics, compute logic, and tests.
 - **Next.js 14 App Router UI** styled with TailwindCSS and shadcn/ui components. Includes upload flow, activity list, detail dashboard with HCSR chart, and registry browser.
-- **Optional authentication** powered by NextAuth credentials provider, disabled by default for local development.
+- **Authentication & profiles** powered by NextAuth credentials provider, enabled by default so every environment is scoped per user.
 - **Vitest test suite** covering FIT parsing normalization, HCSR computations, registry wiring, and an API happy-path smoke test.
 - **Docker Compose** for local production-style deployment (Postgres + API + Web) and GitHub Actions CI running lint, typecheck, and tests.
 
@@ -55,9 +55,9 @@ Key variables:
 
 ### Authentication
 
-To activate user authentication end to end:
+Authentication and per-user profiles are now enabled by default. To confirm the end-to-end flow:
 
-1. **Update environment variables** – edit your `.env` (or the respective backend/frontend `.env` files if split) and set:
+1. **Update environment variables** – edit your `.env` (or the respective backend/frontend `.env` files if split) and ensure:
    - `AUTH_ENABLED=true`
    - `NEXT_PUBLIC_AUTH_ENABLED=true`
    - `NEXTAUTH_SECRET=<generate a long random string>`
@@ -71,8 +71,8 @@ To activate user authentication end to end:
    These commands create the `User` and `Profile` tables and seed the metric registry used after login.
 4. **Create an account** – visit `/register` in the web app, sign up with an email and password (minimum 8 characters), then sign in via `/signin`. After authentication you will be redirected to `/profile` to complete your display name, avatar, and bio.
 
-- **Open mode** – leave `AUTH_ENABLED=false` and `NEXT_PUBLIC_AUTH_ENABLED=false` (the defaults) to skip authentication entirely. Uploads, metrics, and activities are shared across visitors which keeps local demos frictionless.
-- **Protected mode** – with the variables above enabled, all new uploads and activity history are automatically scoped to the authenticated user via bearer tokens issued by the backend. API calls to `/upload`, `/activities`, `/profile`, and metric recomputation endpoints require an authenticated session.
+- **Protected mode (default)** – with the variables above enabled, all new uploads and activity history are automatically scoped to the authenticated user via bearer tokens issued by the backend. API calls to `/upload`, `/activities`, `/profile`, and metric recomputation endpoints require an authenticated session.
+- **Open mode** – set `AUTH_ENABLED=false` and `NEXT_PUBLIC_AUTH_ENABLED=false` to skip authentication entirely. Uploads, metrics, and activities are shared across visitors which keeps local demos frictionless.
 
 ### Database
 

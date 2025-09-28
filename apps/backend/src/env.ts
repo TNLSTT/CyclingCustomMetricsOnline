@@ -12,7 +12,7 @@ const envSchema = z.object({
   AUTH_ENABLED: z
     .string()
     .optional()
-    .transform((val) => (val ? val.toLowerCase() === 'true' : false)),
+    .transform((val) => (val ? val.toLowerCase() === 'true' : true)),
   NEXTAUTH_SECRET: z.string().optional(),
   JWT_SECRET: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),

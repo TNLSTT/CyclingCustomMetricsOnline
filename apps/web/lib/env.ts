@@ -9,7 +9,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_AUTH_ENABLED: z
     .enum(['true', 'false'])
     .optional()
-    .default('false'),
+    .default('true'),
 });
 
 const parsed = envSchema.parse({
