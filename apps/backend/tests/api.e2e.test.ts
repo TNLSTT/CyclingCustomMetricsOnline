@@ -1,11 +1,14 @@
 import fs from 'node:fs/promises';
 
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
+import { env } from '../src/env.js';
 import { createApp } from '../src/app.js';
 import type { NormalizedActivity } from '../src/types.js';
+import { db } from './setup';
 
 function buildNormalizedActivity(): NormalizedActivity {
   const samples: NormalizedActivity['samples'] = [];
@@ -41,16 +44,20 @@ function buildNormalizedActivity(): NormalizedActivity {
 }
 
 vi.mock('../src/services/ingestService.js', () => ({
-  ingestFitFile: vi.fn(async () => {
+  ingestFitFile: vi.fn(async (_filePath: string, userId?: string) => {
     const { saveActivity } = await import('../src/services/activityService.js');
     const normalized = buildNormalizedActivity();
-    const activity = await saveActivity(normalized);
+    const activity = await saveActivity(normalized, userId);
     return { activity, normalized };
   }),
 }));
 
 const app = createApp();
 const fixturePath = new URL('./fixtures/mock.fit', import.meta.url).pathname;
+const authToken = jwt.sign(
+  { sub: 'test-user', email: 'test@example.com' },
+  process.env.JWT_SECRET ?? 'test-secret',
+);
 
 describe('Activities API flow', () => {
   let unlinkSpy: MockInstance<Parameters<typeof fs.unlink>, ReturnType<typeof fs.unlink>>;
@@ -66,8 +73,11 @@ describe('Activities API flow', () => {
   });
 
   it('ingests, computes metrics, and retrieves results', async () => {
+    expect(env.AUTH_ENABLED).toBe(true);
+
     const uploadResponse = await request(app)
       .post('/api/upload')
+      .set('Authorization', `Bearer ${authToken}`)
       .attach('files', fixturePath)
       .attach('files', fixturePath);
 
@@ -76,43 +86,48 @@ describe('Activities API flow', () => {
     expect(uploadResponse.body.uploads.length).toBeGreaterThan(0);
     const activityId = uploadResponse.body.uploads[0]?.activityId;
     expect(activityId).toBeDefined();
+    const savedActivity = db.activities.get(activityId!);
+    expect(savedActivity?.userId).toBe('test-user');
 
     const computeResponse = await request(app)
       .post(`/api/activities/${activityId}/compute`)
+      .set('Authorization', `Bearer ${authToken}`)
       .send();
 
-    expect(computeResponse.status).toBe(200);
+    expect(computeResponse.status, `Compute failed: ${JSON.stringify(computeResponse.body)}`).toBe(200);
     expect(computeResponse.body.results.hcsr).toBeDefined();
     expect(computeResponse.body.results['interval-efficiency']).toBeDefined();
 
-    const detailResponse = await request(app).get(`/api/activities/${activityId}`);
+    const detailResponse = await request(app)
+      .get(`/api/activities/${activityId}`)
+      .set('Authorization', `Bearer ${authToken}`);
     expect(detailResponse.status).toBe(200);
     expect(detailResponse.body.metrics.length).toBeGreaterThan(0);
 
-    const metricResponse = await request(app).get(
-      `/api/activities/${activityId}/metrics/hcsr`,
-    );
+    const metricResponse = await request(app)
+      .get(`/api/activities/${activityId}/metrics/hcsr`)
+      .set('Authorization', `Bearer ${authToken}`);
     expect(metricResponse.status).toBe(200);
     expect(metricResponse.body.summary.slope_bpm_per_rpm).toBeGreaterThan(0);
     expect(Array.isArray(metricResponse.body.series)).toBe(true);
 
-    const intervalResponse = await request(app).get(
-      `/api/activities/${activityId}/metrics/interval-efficiency`,
-    );
+    const intervalResponse = await request(app)
+      .get(`/api/activities/${activityId}/metrics/interval-efficiency`)
+      .set('Authorization', `Bearer ${authToken}`);
     expect(intervalResponse.status).toBe(200);
     expect(Array.isArray(intervalResponse.body.intervals)).toBe(true);
     expect(intervalResponse.body.intervals.length).toBeGreaterThan(0);
 
-    const historyResponse = await request(app).get(
-      '/api/metrics/interval-efficiency/history',
-    );
+    const historyResponse = await request(app)
+      .get('/api/metrics/interval-efficiency/history')
+      .set('Authorization', `Bearer ${authToken}`);
     expect(historyResponse.status).toBe(200);
     expect(Array.isArray(historyResponse.body.points)).toBe(true);
     expect(historyResponse.body.points.length).toBeGreaterThan(0);
 
-    const adaptationResponse = await request(app).get(
-      '/api/metrics/adaptation-edges/deepest-blocks',
-    );
+    const adaptationResponse = await request(app)
+      .get('/api/metrics/adaptation-edges/deepest-blocks')
+      .set('Authorization', `Bearer ${authToken}`);
     expect(adaptationResponse.status).toBe(200);
     expect(Array.isArray(adaptationResponse.body.windowSummaries)).toBe(true);
 
