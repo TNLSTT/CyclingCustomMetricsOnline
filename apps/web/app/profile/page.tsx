@@ -58,10 +58,11 @@ export default async function ProfilePage() {
 
     return (
       <div className="space-y-6">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-3xl font-bold">Profile</h1>
           <p className="text-muted-foreground">
-            Update how your name, photo, and bio appear across Cycling Custom Metrics.
+            Craft a rich training identity with goals, highlights, and social links that appear alongside
+            your activities and analytics.
           </p>
         </div>
         <ProfileForm profile={profile} authToken={session?.accessToken} />

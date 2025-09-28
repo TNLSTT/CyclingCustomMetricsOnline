@@ -9,6 +9,28 @@ const profileUpdateSchema = z.object({
   displayName: z.string().trim().min(1).max(100).optional().nullable(),
   avatarUrl: z.string().trim().url().max(2048).optional().nullable(),
   bio: z.string().trim().max(1000).optional().nullable(),
+  location: z.string().trim().max(100).optional().nullable(),
+  primaryDiscipline: z.string().trim().max(100).optional().nullable(),
+  trainingFocus: z.string().trim().max(200).optional().nullable(),
+  websiteUrl: z.string().trim().url().max(2048).optional().nullable(),
+  instagramHandle: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_.-]+$/, 'Instagram handle can only include letters, numbers, dots, hyphens, and underscores.')
+    .max(60)
+    .optional()
+    .nullable(),
+  achievements: z.string().trim().max(500).optional().nullable(),
+  weeklyGoalHours: z
+    .number({ invalid_type_error: 'Weekly training goal must be a number.' })
+    .refine((value) => Number.isFinite(value), {
+      message: 'Weekly training goal must be a number.',
+    })
+    .int('Weekly training goal must be a whole number of hours.')
+    .min(0, 'Weekly training goal cannot be negative.')
+    .max(80, 'Weekly training goal must be 80 hours or less.')
+    .optional()
+    .nullable(),
 });
 
 function toNullable<T>(value: T | undefined | null): T | null | undefined {
@@ -22,6 +44,30 @@ function toNullable<T>(value: T | undefined | null): T | null | undefined {
     return null;
   }
   return value;
+}
+
+function toNullableNumber(value: unknown): number | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return Number.NaN;
+    }
+    return parsed;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : Number.NaN;
+  }
+  return Number.NaN;
 }
 
 export const profileRouter = express.Router();
@@ -67,6 +113,13 @@ profileRouter.put(
       displayName: toNullable(req.body.displayName),
       avatarUrl: toNullable(req.body.avatarUrl),
       bio: toNullable(req.body.bio),
+      location: toNullable(req.body.location),
+      primaryDiscipline: toNullable(req.body.primaryDiscipline),
+      trainingFocus: toNullable(req.body.trainingFocus),
+      websiteUrl: toNullable(req.body.websiteUrl),
+      instagramHandle: toNullable(req.body.instagramHandle),
+      achievements: toNullable(req.body.achievements),
+      weeklyGoalHours: toNullableNumber(req.body.weeklyGoalHours),
     };
 
     const parsed = profileUpdateSchema.safeParse(payload);
