@@ -6,6 +6,7 @@ import { prisma } from '../prisma.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 import { logger } from '../logger.js';
 import { computeAdaptationEdges } from '../services/adaptationEdgesService.js';
+import { computeMovingAverageInputs } from '../services/movingAveragesService.js';
 
 type IntervalEfficiencyHistoryRow = {
   activityId: string;
@@ -155,6 +156,20 @@ metricsRouter.get(
       res.json(analysis);
     } catch (error) {
       logger.error({ err: error }, 'Failed to compute adaptation edges');
+      throw error;
+    }
+  }),
+);
+
+metricsRouter.get(
+  '/moving-averages',
+  asyncHandler(async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const days = await computeMovingAverageInputs(userId);
+      res.json({ days });
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to compute moving averages');
       throw error;
     }
   }),

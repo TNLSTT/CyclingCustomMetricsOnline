@@ -1,5 +1,6 @@
-import type { MetricModule, MetricSample } from './types.js';
 import { computeAveragePower, computeNormalizedPower, extractPowerSamples } from '../utils/power.js';
+
+import type { MetricModule } from './types.js';
 
 const WINDOW_SECONDS = 30;
 const COASTING_THRESHOLD_WATTS = 5;
