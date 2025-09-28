@@ -9,6 +9,12 @@ const profileUpdateSchema = z.object({
   displayName: z.string().trim().min(1).max(100).optional().nullable(),
   avatarUrl: z.string().trim().url().max(2048).optional().nullable(),
   bio: z.string().trim().max(1000).optional().nullable(),
+  location: z.string().trim().max(120).optional().nullable(),
+  primaryDiscipline: z.string().trim().max(60).optional().nullable(),
+  trainingFocus: z.string().trim().max(500).optional().nullable(),
+  favoriteRide: z.string().trim().max(280).optional().nullable(),
+  websiteUrl: z.string().trim().url().max(2048).optional().nullable(),
+  instagramHandle: z.string().trim().max(120).optional().nullable(),
 });
 
 function toNullable<T>(value: T | undefined | null): T | null | undefined {
@@ -67,6 +73,12 @@ profileRouter.put(
       displayName: toNullable(req.body.displayName),
       avatarUrl: toNullable(req.body.avatarUrl),
       bio: toNullable(req.body.bio),
+      location: toNullable(req.body.location),
+      primaryDiscipline: toNullable(req.body.primaryDiscipline),
+      trainingFocus: toNullable(req.body.trainingFocus),
+      favoriteRide: toNullable(req.body.favoriteRide),
+      websiteUrl: toNullable(req.body.websiteUrl),
+      instagramHandle: toNullable(req.body.instagramHandle),
     };
 
     const parsed = profileUpdateSchema.safeParse(payload);
