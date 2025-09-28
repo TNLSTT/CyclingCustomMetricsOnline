@@ -55,8 +55,24 @@ Key variables:
 
 ### Authentication
 
+To activate user authentication end to end:
+
+1. **Update environment variables** – edit your `.env` (or the respective backend/frontend `.env` files if split) and set:
+   - `AUTH_ENABLED=true`
+   - `NEXT_PUBLIC_AUTH_ENABLED=true`
+   - `NEXTAUTH_SECRET=<generate a long random string>`
+   - (Optional) `JWT_SECRET=<random string>` if you want bearer tokens to use a distinct secret from NextAuth.
+2. **Restart the dev servers** so the new environment variables are picked up (`pnpm dev` or the individual backend/frontend processes).
+3. **Provision your database** (only required the first time):
+   ```bash
+   pnpm db:push
+   pnpm seed
+   ```
+   These commands create the `User` and `Profile` tables and seed the metric registry used after login.
+4. **Create an account** – visit `/register` in the web app, sign up with an email and password (minimum 8 characters), then sign in via `/signin`. After authentication you will be redirected to `/profile` to complete your display name, avatar, and bio.
+
 - **Open mode** – leave `AUTH_ENABLED=false` and `NEXT_PUBLIC_AUTH_ENABLED=false` (the defaults) to skip authentication entirely. Uploads, metrics, and activities are shared across visitors which keeps local demos frictionless.
-- **Protected mode** – set `AUTH_ENABLED=true` in the backend `.env` and `NEXT_PUBLIC_AUTH_ENABLED=true` in the frontend `.env` to require registration and login. New users can sign up via `/register` and will be redirected to `/profile` after signing in to complete their display name, avatar, and bio. All API calls (uploads, activity history, metric recomputations) are automatically scoped to the authenticated user via bearer tokens issued by the backend.
+- **Protected mode** – with the variables above enabled, all new uploads and activity history are automatically scoped to the authenticated user via bearer tokens issued by the backend. API calls to `/upload`, `/activities`, `/profile`, and metric recomputation endpoints require an authenticated session.
 
 ### Database
 
