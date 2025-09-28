@@ -75,3 +75,16 @@ body {
 * {
   border-color: hsl(var(--border));
 }
+
+.recharts-default-tooltip {
+  background-color: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px -15px hsl(var(--background) / 0.45);
+}
+
+.recharts-tooltip-label,
+.recharts-tooltip-item-list .recharts-tooltip-item {
+  color: hsl(var(--popover-foreground));
+}
