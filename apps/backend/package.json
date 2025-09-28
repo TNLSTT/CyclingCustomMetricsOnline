@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "backfill:metrics": "tsx src/scripts/backfillMetrics.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.11.0",
