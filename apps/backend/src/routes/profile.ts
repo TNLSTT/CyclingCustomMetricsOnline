@@ -23,9 +23,7 @@ const profileUpdateSchema = z.object({
   achievements: z.string().trim().max(500).optional().nullable(),
   weeklyGoalHours: z
     .number({ invalid_type_error: 'Weekly training goal must be a number.' })
-    .refine((value) => Number.isFinite(value), {
-      message: 'Weekly training goal must be a number.',
-    })
+    .finite({ message: 'Weekly training goal must be a number.' })
     .int('Weekly training goal must be a whole number of hours.')
     .min(0, 'Weekly training goal cannot be negative.')
     .max(80, 'Weekly training goal must be 80 hours or less.')

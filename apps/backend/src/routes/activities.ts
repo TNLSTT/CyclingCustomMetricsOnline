@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import express from 'express';
 import asyncHandler from 'express-async-handler';
 import { z } from 'zod';
@@ -8,6 +7,8 @@ import { prisma } from '../prisma.js';
 import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
+import { mapActivity } from '../utils/activityMapper.js';
+import { buildActivityComparison } from '../services/activityComparisonService.js';
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -19,32 +20,6 @@ const computeSchema = z
     metricKeys: z.array(z.string()).min(1).optional(),
   })
   .optional();
-
-type ActivityWithMetrics = Prisma.ActivityGetPayload<{
-  include: {
-    metrics: {
-      include: {
-        metricDefinition: true;
-      };
-    };
-  };
-}>;
-
-function mapActivity(activity: ActivityWithMetrics) {
-  return {
-    id: activity.id,
-    source: activity.source,
-    startTime: activity.startTime,
-    durationSec: activity.durationSec,
-    sampleRateHz: activity.sampleRateHz,
-    createdAt: activity.createdAt,
-    metrics: (activity.metrics ?? []).map((metric: any) => ({
-      key: metric.metricDefinition.key,
-      summary: metric.summary,
-      computedAt: metric.computedAt,
-    })),
-  };
-}
 
 type TrackPoint = { latitude: number; longitude: number };
 
@@ -72,6 +47,11 @@ function simplifyTrack(points: TrackPoint[], maxPoints = 1000): TrackPoint[] {
 
   return simplified;
 }
+
+const comparisonSchema = z.object({
+  firstId: z.string().min(1),
+  secondId: z.string().min(1),
+});
 
 export const activitiesRouter = express.Router();
 
@@ -108,6 +88,25 @@ activitiesRouter.get(
       pageSize: params.pageSize,
       total,
     });
+  }),
+);
+
+activitiesRouter.get(
+  '/compare',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const params = comparisonSchema.parse(req.query);
+
+    const [first, second] = await Promise.all([
+      buildActivityComparison(params.firstId, req.user?.id),
+      buildActivityComparison(params.secondId, req.user?.id),
+    ]);
+
+    res.json({ first, second });
   }),
 );
 

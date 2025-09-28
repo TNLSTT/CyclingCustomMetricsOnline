@@ -110,3 +110,36 @@ export interface IntervalEfficiencyHistoryResponse {
   intervalSeconds: number;
   points: IntervalEfficiencyHistoryPoint[];
 }
+
+export interface PowerHeartRatePoint {
+  power: number;
+  heartRate: number;
+}
+
+export interface ClimbProfilePoint {
+  distanceKm: number;
+  elevationM: number;
+  elapsedSec: number;
+}
+
+export interface WPrimeBalancePoint {
+  elapsedSec: number;
+  balanceJ: number;
+}
+
+export interface ActivityComparisonEntry {
+  activity: ActivitySummary;
+  averagePower: number | null;
+  averageHeartRate: number | null;
+  totalDistanceKm: number | null;
+  cpEstimate: number | null;
+  wPrimeCapacity: number;
+  powerHeartRate: PowerHeartRatePoint[];
+  climbProfile: ClimbProfilePoint[];
+  wPrimeBalance: WPrimeBalancePoint[];
+}
+
+export interface ActivityComparisonResponse {
+  first: ActivityComparisonEntry;
+  second: ActivityComparisonEntry;
+}

@@ -9,6 +9,7 @@ import type {
   IntervalEfficiencyResponse,
   IntervalEfficiencyHistoryResponse,
   ActivityTrackResponse,
+  ActivityComparisonResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
 
@@ -104,6 +105,19 @@ export async function fetchIntervalEfficiencyHistory(authToken?: string) {
 
 export async function deleteActivity(activityId: string, authToken?: string) {
   await apiFetch<void>(`/activities/${activityId}`, { method: 'DELETE' }, authToken);
+}
+
+export async function fetchActivityComparison(
+  firstId: string,
+  secondId: string,
+  authToken?: string,
+) {
+  const searchParams = new URLSearchParams({ firstId, secondId });
+  return apiFetch<ActivityComparisonResponse>(
+    `/activities/compare?${searchParams.toString()}`,
+    undefined,
+    authToken,
+  );
 }
 
 export async function fetchMetricDefinitions(authToken?: string) {
