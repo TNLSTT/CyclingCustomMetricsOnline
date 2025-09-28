@@ -10,6 +10,7 @@ import {
   fetchIntervalEfficiency,
   fetchMetricResult,
 } from '../lib/api';
+import { formatDuration } from '../lib/utils';
 import type {
   ActivitySummary,
   IntervalEfficiencyResponse,
@@ -323,7 +324,7 @@ export function ActivityDetailClient({
         <div>
           <h1 className="text-3xl font-bold">Ride on {new Date(activity.startTime).toLocaleString()}</h1>
           <p className="text-muted-foreground">
-            {activity.source} · duration {Math.round(activity.durationSec / 60)} minutes
+            {activity.source} · duration {formatDuration(activity.durationSec)}
           </p>
         </div>
         <Button onClick={handleRecompute} disabled={isPending} variant="secondary">
