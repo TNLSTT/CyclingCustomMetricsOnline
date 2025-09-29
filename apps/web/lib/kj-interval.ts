@@ -16,6 +16,9 @@ export interface KjIntervalDetail {
   startSec: number;
   endSec: number;
   durationSec: number;
+  inZoneDurationSec: number;
+  overshootDurationSec: number;
+  averagePower: number;
   energyKj: number;
   overshootFraction: number;
 }
@@ -24,6 +27,7 @@ export interface KjZoneSummary {
   zoneId: string;
   zoneLabel: string;
   totalDurationSec: number;
+  totalInZoneDurationSec: number;
   totalEnergyKj: number;
   intervalCount: number;
   intervals: KjIntervalDetail[];
@@ -34,7 +38,7 @@ interface ZoneState {
   startSec: number;
   endSec: number;
   inZoneDurationSec: number;
-  inZoneEnergyJ: number;
+  energyJ: number;
   overshootTimeSec: number;
   totalTimeSec: number;
 }
@@ -45,7 +49,7 @@ function createInitialState(): ZoneState {
     startSec: 0,
     endSec: 0,
     inZoneDurationSec: 0,
-    inZoneEnergyJ: 0,
+    energyJ: 0,
     overshootTimeSec: 0,
     totalTimeSec: 0,
   };
@@ -77,8 +81,9 @@ function finalizeZone(
     state.totalTimeSec > 0 ? state.overshootTimeSec / state.totalTimeSec : 0;
 
   if (meetsDuration && overshootFraction <= zone.overshootTolerance) {
-    const energyKj = state.inZoneEnergyJ / 1000;
-    summary.totalDurationSec += state.inZoneDurationSec;
+    const energyKj = state.energyJ / 1000;
+    summary.totalDurationSec += state.totalTimeSec;
+    summary.totalInZoneDurationSec += state.inZoneDurationSec;
     summary.totalEnergyKj += energyKj;
     summary.intervalCount += 1;
     summary.intervals.push({
@@ -86,7 +91,13 @@ function finalizeZone(
       zoneLabel: zone.label,
       startSec: state.startSec,
       endSec: state.endSec,
-      durationSec: state.inZoneDurationSec,
+      durationSec: state.totalTimeSec,
+      inZoneDurationSec: state.inZoneDurationSec,
+      overshootDurationSec: Math.max(0, state.totalTimeSec - state.inZoneDurationSec),
+      averagePower:
+        state.totalTimeSec > 0 && Number.isFinite(state.energyJ)
+          ? state.energyJ / state.totalTimeSec
+          : 0,
       energyKj,
       overshootFraction,
     });
@@ -108,6 +119,7 @@ export function computeKjIntervalSummaries(
     zoneId: zone.id,
     zoneLabel: zone.label,
     totalDurationSec: 0,
+    totalInZoneDurationSec: 0,
     totalEnergyKj: 0,
     intervalCount: 0,
     intervals: [],
@@ -152,7 +164,7 @@ export function computeKjIntervalSummaries(
           state.startSec = sample.t;
           state.endSec = sample.t + dt;
           state.inZoneDurationSec = dt;
-          state.inZoneEnergyJ = power * dt;
+          state.energyJ = power * dt;
           state.overshootTimeSec = 0;
           state.totalTimeSec = dt;
         }
@@ -181,9 +193,10 @@ export function computeKjIntervalSummaries(
 
       if (inZone) {
         state.inZoneDurationSec += dt;
-        state.inZoneEnergyJ += power * dt;
+        state.energyJ += power * dt;
       } else if (withinOvershoot) {
         state.overshootTimeSec += dt;
+        state.energyJ += power * dt;
       }
     }
   }

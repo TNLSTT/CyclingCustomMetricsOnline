@@ -135,6 +135,10 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
   const [timeframe, setTimeframe] = useState<TimeframeValue>('90d');
   const [movingAverageEnabled, setMovingAverageEnabled] = useState(false);
   const [movingAverageDaysInput, setMovingAverageDaysInput] = useState('7');
+  const selectedActivity = useMemo(
+    () => activities.find((activity) => activity.id === selectedActivityId) ?? null,
+    [activities, selectedActivityId],
+  );
 
   const { data: session, status } = useSession();
 
@@ -298,6 +302,7 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
         zoneId: zone.id,
         zoneLabel: zone.label,
         totalDurationSec: 0,
+        totalInZoneDurationSec: 0,
         totalEnergyKj: 0,
         intervalCount: 0,
         intervals: [],
@@ -311,6 +316,50 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
       .flatMap((summary) => summary.intervals)
       .sort((a, b) => a.startSec - b.startSec);
   }, [zoneSummaries]);
+
+  const totalZoneDurationSec = useMemo(
+    () => zoneSummaries.reduce((total, summary) => total + summary.totalDurationSec, 0),
+    [zoneSummaries],
+  );
+  const totalInZoneDurationSec = useMemo(
+    () => zoneSummaries.reduce((total, summary) => total + summary.totalInZoneDurationSec, 0),
+    [zoneSummaries],
+  );
+  const totalZoneEnergyKj = useMemo(
+    () => zoneSummaries.reduce((total, summary) => total + summary.totalEnergyKj, 0),
+    [zoneSummaries],
+  );
+  const totalOvershootDurationSec = Math.max(0, totalZoneDurationSec - totalInZoneDurationSec);
+  const totalIntervals = allIntervals.length;
+  const averageIntervalPower =
+    totalZoneDurationSec > 0 ? (totalZoneEnergyKj * 1000) / totalZoneDurationSec : null;
+  const selectedActivityDuration = selectedActivity?.durationSec ?? null;
+  const qualifyingShareOfRide =
+    selectedActivityDuration != null && selectedActivityDuration > 0
+      ? (totalZoneDurationSec / selectedActivityDuration) * 100
+      : null;
+  const inZoneShareOfQualifying =
+    totalZoneDurationSec > 0 ? (totalInZoneDurationSec / totalZoneDurationSec) * 100 : null;
+  const overshootShareOfQualifying =
+    totalZoneDurationSec > 0 ? (totalOvershootDurationSec / totalZoneDurationSec) * 100 : null;
+
+  const longestInterval = useMemo(() => {
+    if (allIntervals.length === 0) {
+      return null;
+    }
+    return allIntervals.reduce((previous, current) =>
+      current.durationSec > previous.durationSec ? current : previous,
+    );
+  }, [allIntervals]);
+
+  const highestEnergyInterval = useMemo(() => {
+    if (allIntervals.length === 0) {
+      return null;
+    }
+    return allIntervals.reduce((previous, current) =>
+      current.energyKj > previous.energyKj ? current : previous,
+    );
+  }, [allIntervals]);
 
   const ftpNumber = Number.parseFloat(ftpInput);
 
@@ -459,6 +508,13 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
   };
 
   const hasIntervals = allIntervals.length > 0;
+
+  const formatPercent = (value: number | null) => {
+    if (value == null || !Number.isFinite(value)) {
+      return '—';
+    }
+    return `${formatNumber(value, 1)}%`;
+  };
 
   return (
     <div className="space-y-6">
@@ -725,6 +781,105 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
         </Alert>
       ) : null}
 
+      {selectedActivity ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Selected activity overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              {buildActivityLabel(selectedActivity)}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Ride duration</div>
+                <div className="text-lg font-semibold">
+                  {formatDuration(selectedActivity.durationSec)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Qualifying time</div>
+                <div className="text-lg font-semibold">
+                  {formatDuration(totalZoneDurationSec)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Share of ride: {formatPercent(qualifyingShareOfRide)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">In-zone time</div>
+                <div className="text-lg font-semibold">
+                  {formatDuration(totalInZoneDurationSec)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Of qualifying time: {formatPercent(inZoneShareOfQualifying)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Overshoot time</div>
+                <div className="text-lg font-semibold">
+                  {formatDuration(totalOvershootDurationSec)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Of qualifying time: {formatPercent(overshootShareOfQualifying)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Total energy</div>
+                <div className="text-lg font-semibold">
+                  {formatNumber(totalZoneEnergyKj, 1)} kJ
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Average power</div>
+                <div className="text-lg font-semibold">
+                  {averageIntervalPower ? `${formatNumber(averageIntervalPower, 0)} W` : '—'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="text-xs uppercase text-muted-foreground">Intervals found</div>
+                <div className="text-lg font-semibold">{totalIntervals}</div>
+              </div>
+            </div>
+            {totalIntervals > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {longestInterval ? (
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <div className="text-sm font-semibold">Longest interval</div>
+                    <div className="text-xs text-muted-foreground">{longestInterval.zoneLabel}</div>
+                    <div className="mt-2 text-sm">
+                      {formatDuration(longestInterval.durationSec)} from {formatNumber(longestInterval.startSec, 0)}s to{' '}
+                      {formatNumber(longestInterval.endSec, 0)}s
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Avg {formatNumber(longestInterval.averagePower, 0)} W • {formatNumber(longestInterval.energyKj, 1)} kJ
+                    </div>
+                  </div>
+                ) : null}
+                {highestEnergyInterval ? (
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <div className="text-sm font-semibold">Highest energy interval</div>
+                    <div className="text-xs text-muted-foreground">{highestEnergyInterval.zoneLabel}</div>
+                    <div className="mt-2 text-sm">
+                      {formatNumber(highestEnergyInterval.energyKj, 1)} kJ over{' '}
+                      {formatDuration(highestEnergyInterval.durationSec)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Avg {formatNumber(highestEnergyInterval.averagePower, 0)} W • Overshoot{' '}
+                      {formatPercent(highestEnergyInterval.overshootFraction * 100)}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Load an activity with power data to see time-in-zone and interval highlights.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Zone summary</CardTitle>
@@ -749,7 +904,11 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
                     <TableHead>Zone</TableHead>
                     <TableHead>Intervals</TableHead>
                     <TableHead>Total time</TableHead>
+                    <TableHead>In-zone time</TableHead>
+                    <TableHead>Overshoot time</TableHead>
                     <TableHead>Total kJ</TableHead>
+                    <TableHead>Avg power (W)</TableHead>
+                    <TableHead>Avg interval</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -758,7 +917,21 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
                       <TableCell className="font-medium">{summary.zoneLabel}</TableCell>
                       <TableCell>{summary.intervalCount}</TableCell>
                       <TableCell>{formatDuration(summary.totalDurationSec)}</TableCell>
+                      <TableCell>{formatDuration(summary.totalInZoneDurationSec)}</TableCell>
+                      <TableCell>
+                        {formatDuration(Math.max(0, summary.totalDurationSec - summary.totalInZoneDurationSec))}
+                      </TableCell>
                       <TableCell>{formatNumber(summary.totalEnergyKj, 1)}</TableCell>
+                      <TableCell>
+                        {summary.totalDurationSec > 0
+                          ? formatNumber((summary.totalEnergyKj * 1000) / summary.totalDurationSec, 0)
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {summary.intervalCount > 0
+                          ? formatDuration(summary.totalDurationSec / summary.intervalCount)
+                          : '—'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -782,28 +955,34 @@ export function KjIntervalTab({ activities, ftpEstimate }: KjIntervalTabProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Zone</TableHead>
-                    <TableHead>Start (s)</TableHead>
-                    <TableHead>End (s)</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>kJ</TableHead>
-                    <TableHead>Overshoot %</TableHead>
+                  <TableHead>Zone</TableHead>
+                  <TableHead>Start (s)</TableHead>
+                  <TableHead>End (s)</TableHead>
+                  <TableHead>Total duration</TableHead>
+                  <TableHead>In-zone</TableHead>
+                  <TableHead>Overshoot</TableHead>
+                  <TableHead>Avg power (W)</TableHead>
+                  <TableHead>kJ</TableHead>
+                  <TableHead>Overshoot %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allIntervals.map((interval) => (
+                  <TableRow key={`${interval.zoneId}-${interval.startSec}-${interval.endSec}`}>
+                    <TableCell className="font-medium">{interval.zoneLabel}</TableCell>
+                    <TableCell>{formatNumber(interval.startSec, 0)}</TableCell>
+                    <TableCell>{formatNumber(interval.endSec, 0)}</TableCell>
+                    <TableCell>{formatDuration(interval.durationSec)}</TableCell>
+                    <TableCell>{formatDuration(interval.inZoneDurationSec)}</TableCell>
+                    <TableCell>{formatDuration(interval.overshootDurationSec)}</TableCell>
+                    <TableCell>{formatNumber(interval.averagePower, 0)}</TableCell>
+                    <TableCell>{formatNumber(interval.energyKj, 1)}</TableCell>
+                    <TableCell>{formatNumber(interval.overshootFraction * 100, 1)}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allIntervals.map((interval) => (
-                    <TableRow key={`${interval.zoneId}-${interval.startSec}-${interval.endSec}`}>
-                      <TableCell className="font-medium">{interval.zoneLabel}</TableCell>
-                      <TableCell>{formatNumber(interval.startSec, 0)}</TableCell>
-                      <TableCell>{formatNumber(interval.endSec, 0)}</TableCell>
-                      <TableCell>{formatDuration(interval.durationSec)}</TableCell>
-                      <TableCell>{formatNumber(interval.energyKj, 1)}</TableCell>
-                      <TableCell>{formatNumber(interval.overshootFraction * 100, 1)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           )}
         </CardContent>
       </Card>
