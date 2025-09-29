@@ -8,6 +8,7 @@ Cycling Custom Metrics is a full-stack TypeScript application that ingests Garmi
 - **Garmin FIT ingestion** using `fit-file-parser` with resampling to 1 Hz, forward filling of small gaps, and sample sanitation.
 - **Extensible metric engine** – add a single file under `apps/backend/src/metrics` to define new metrics, compute logic, and tests.
 - **Next.js 14 App Router UI** styled with TailwindCSS and shadcn/ui components. Includes upload flow, activity list, detail dashboard with HCSR chart, and registry browser.
+- **Durability analysis dashboard** that filters long rides, computes FTP-anchored durability scores, and visualizes power/heart rate resilience trends.
 - **Authentication & profiles** powered by NextAuth credentials provider, enabled by default so every environment is scoped per user.
 - **Vitest test suite** covering FIT parsing normalization, HCSR computations, registry wiring, and an API happy-path smoke test.
 - **Docker Compose** for local production-style deployment (Postgres + API + Web) and GitHub Actions CI running lint, typecheck, and tests.
@@ -145,6 +146,25 @@ Implementation details (`apps/backend/src/metrics/hcsr.ts`):
 4. Compare linear vs. piecewise fits for nonlinearity delta; compute R² diagnostics.
 5. Split ride halves to detect fatigue-related slope drift.
 6. Persist summary metrics and per-bucket series for visualization.
+
+### Durability score
+
+The durability analysis page anchors every calculation to the rider’s FTP value stored on their profile. For
+each ride longer than the configured minimum duration (3+ hours by default), the backend splits the
+timeline into thirds and evaluates:
+
+- Normalized power (NP) for the opening and closing thirds, expressed as a percentage of FTP.
+- Heart-rate drift by comparing the HR:Power ratio between the first and last thirds.
+- Best 20-minute rolling power within the final third, also as % FTP.
+
+Scores start at 100 and are adjusted as follows:
+
+- Subtract **0.5 points** for every percentage-point drop in NP%FTP from early to late thirds.
+- Subtract **0.75 points** for every percentage point of positive heart-rate drift.
+- Add **0.5 points** for each percentage point that the best late-ride 20-minute power exceeds FTP.
+
+Results are clamped between 0 and 100 and assume the rider aimed for steady pacing throughout the
+session. Prolonged coasting or an inaccurate FTP setting can skew the analysis.
 
 ## Data Model Notes
 

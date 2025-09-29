@@ -13,6 +13,7 @@ import type {
 } from '../types/activity';
 import type { Profile } from '../types/profile';
 import type { AdaptationEdgesResponse } from '../types/adaptation';
+import type { DurabilityAnalysisResponse } from '../types/durability-analysis';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -120,6 +121,40 @@ export async function fetchAdaptationEdges(authToken?: string) {
   );
 }
 
+export interface DurabilityAnalysisFilters {
+  minDurationMinutes?: number;
+  startDate?: string;
+  endDate?: string;
+  discipline?: string;
+  keyword?: string;
+}
+
+export async function fetchDurabilityAnalysis(
+  filters: DurabilityAnalysisFilters,
+  authToken?: string,
+) {
+  const params = new URLSearchParams();
+  if (filters.minDurationMinutes != null) {
+    params.set('minDurationMinutes', String(filters.minDurationMinutes));
+  }
+  if (filters.startDate) {
+    params.set('startDate', filters.startDate);
+  }
+  if (filters.endDate) {
+    params.set('endDate', filters.endDate);
+  }
+  if (filters.discipline) {
+    params.set('discipline', filters.discipline);
+  }
+  if (filters.keyword) {
+    params.set('keyword', filters.keyword);
+  }
+
+  const search = params.toString();
+  const path = search.length > 0 ? `/durability-analysis?${search}` : '/durability-analysis';
+  return apiFetch<DurabilityAnalysisResponse>(path, undefined, authToken);
+}
+
 export async function deleteActivity(activityId: string, authToken?: string) {
   await apiFetch<void>(`/activities/${activityId}`, { method: 'DELETE' }, authToken);
 }
@@ -152,6 +187,7 @@ export async function updateProfile(
     primaryDiscipline: string | null;
     trainingFocus: string | null;
     weeklyGoalHours: number | null;
+    ftpWatts: number | null;
     websiteUrl: string | null;
     instagramHandle: string | null;
     achievements: string | null;

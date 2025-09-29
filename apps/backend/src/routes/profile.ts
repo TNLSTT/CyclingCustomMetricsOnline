@@ -31,6 +31,16 @@ const profileUpdateSchema = z.object({
     })
     .optional()
     .nullable(),
+  ftpWatts: z
+    .number({ invalid_type_error: 'FTP must be a number.' })
+    .int('FTP must be entered as whole watts.')
+    .min(0, 'FTP cannot be negative.')
+    .max(2000, 'FTP must be 2000W or less.')
+    .refine((value) => Number.isFinite(value), {
+      message: 'FTP must be a number.',
+    })
+    .optional()
+    .nullable(),
 });
 
 function toNullable<T>(value: T | undefined | null): T | null | undefined {
@@ -120,6 +130,7 @@ profileRouter.put(
       instagramHandle: toNullable(req.body.instagramHandle),
       achievements: toNullable(req.body.achievements),
       weeklyGoalHours: toNullableNumber(req.body.weeklyGoalHours),
+      ftpWatts: toNullableNumber(req.body.ftpWatts),
     };
 
     const parsed = profileUpdateSchema.safeParse(payload);

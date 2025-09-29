@@ -8,6 +8,7 @@ export interface Profile {
   primaryDiscipline: string | null;
   trainingFocus: string | null;
   weeklyGoalHours: number | null;
+  ftpWatts: number | null;
   websiteUrl: string | null;
   instagramHandle: string | null;
   achievements: string | null;
