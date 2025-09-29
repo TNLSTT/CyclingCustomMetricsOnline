@@ -28,6 +28,7 @@ model Profile {
   primaryDiscipline String?
   trainingFocus String?
   weeklyGoalHours Int?
+  ftpWatts    Int?
   websiteUrl  String?
   instagramHandle String?
   achievements String?

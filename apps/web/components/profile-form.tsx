@@ -46,6 +46,7 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
   const [weeklyGoalHours, setWeeklyGoalHours] = useState(
     profile?.weeklyGoalHours != null ? String(profile.weeklyGoalHours) : '',
   );
+  const [ftpWatts, setFtpWatts] = useState(profile?.ftpWatts != null ? String(profile.ftpWatts) : '');
   const [websiteUrl, setWebsiteUrl] = useState(profile?.websiteUrl ?? '');
   const [instagramHandle, setInstagramHandle] = useState(profile?.instagramHandle ?? '');
   const [achievements, setAchievements] = useState(profile?.achievements ?? '');
@@ -65,6 +66,14 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     const value = Number(weeklyGoalHours);
     return Number.isFinite(value) ? value : null;
   }, [weeklyGoalHours]);
+
+  const previewFtpWatts = useMemo(() => {
+    if (ftpWatts.trim().length === 0) {
+      return null;
+    }
+    const value = Number(ftpWatts);
+    return Number.isFinite(value) ? value : null;
+  }, [ftpWatts]);
 
   const parsedAchievements = useMemo(
     () =>
@@ -92,6 +101,7 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     const trimmedAchievements = achievements.trim();
 
     let parsedWeeklyGoal: number | null = null;
+    let parsedFtp: number | null = null;
     if (weeklyGoalHours.trim().length > 0) {
       const value = Number(weeklyGoalHours);
       if (!Number.isFinite(value)) {
@@ -112,6 +122,26 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
       parsedWeeklyGoal = value;
     }
 
+    if (ftpWatts.trim().length > 0) {
+      const value = Number(ftpWatts);
+      if (!Number.isFinite(value)) {
+        setError('FTP must be a number.');
+        setIsSaving(false);
+        return;
+      }
+      if (!Number.isInteger(value)) {
+        setError('FTP must be entered as whole watts.');
+        setIsSaving(false);
+        return;
+      }
+      if (value < 0 || value > 2000) {
+        setError('FTP must be between 0 and 2000 watts.');
+        setIsSaving(false);
+        return;
+      }
+      parsedFtp = value;
+    }
+
     try {
       const updates = {
         displayName: trimmedDisplayName.length > 0 ? trimmedDisplayName : null,
@@ -122,6 +152,7 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
           trimmedPrimaryDiscipline.length > 0 ? trimmedPrimaryDiscipline : null,
         trainingFocus: trimmedTrainingFocus.length > 0 ? trimmedTrainingFocus : null,
         weeklyGoalHours: parsedWeeklyGoal,
+        ftpWatts: parsedFtp,
         websiteUrl: trimmedWebsiteUrl.length > 0 ? trimmedWebsiteUrl : null,
         instagramHandle: trimmedInstagram.length > 0 ? trimmedInstagram : null,
         achievements: trimmedAchievements.length > 0 ? trimmedAchievements : null,
@@ -137,6 +168,7 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
       setWeeklyGoalHours(
         updated.weeklyGoalHours != null ? String(updated.weeklyGoalHours) : '',
       );
+      setFtpWatts(updated.ftpWatts != null ? String(updated.ftpWatts) : '');
       setWebsiteUrl(updated.websiteUrl ?? '');
       setInstagramHandle(updated.instagramHandle ?? '');
       setAchievements(updated.achievements ?? '');
@@ -286,6 +318,25 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
                     <p className="text-xs text-muted-foreground">Set a target to stay accountable. Whole hours between 0 and 80.</p>
                   </div>
 
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground" htmlFor="ftpWatts">
+                      Functional threshold power (watts)
+                    </label>
+                    <Input
+                      id="ftpWatts"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={2000}
+                      step={1}
+                      value={ftpWatts}
+                      onChange={(event) => setFtpWatts(event.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Used as the anchor for durability and intensity analyses.
+                    </p>
+                  </div>
+
                   <div className="space-y-2 md:col-span-2">
                     <label className="block text-sm font-medium text-foreground" htmlFor="achievements">
                       Recent highlights
@@ -393,6 +444,14 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
                           {previewWeeklyGoalHours != null
                             ? `${previewWeeklyGoalHours} hr${previewWeeklyGoalHours === 1 ? '' : 's'} / week`
                             : 'Set a target to stay accountable.'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-medium text-foreground">FTP anchor</dt>
+                        <dd className="text-muted-foreground">
+                          {previewFtpWatts != null
+                            ? `${previewFtpWatts} W`
+                            : 'Add FTP to power durability insights.'}
                         </dd>
                       </div>
                       <div>
