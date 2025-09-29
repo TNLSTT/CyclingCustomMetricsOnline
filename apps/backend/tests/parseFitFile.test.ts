@@ -81,4 +81,28 @@ describe('parseFitFile', () => {
       'FIT file has no timestamped records.',
     );
   });
+
+  it('skips records that have invalid timestamps instead of crashing', async () => {
+    const base = new Date('2024-01-01T00:00:05Z');
+    mockRecords = [
+      {
+        timestamp: base,
+        heart_rate: 110,
+      },
+      {
+        timestamp: 'not-a-real-date',
+        heart_rate: 120,
+      },
+      {
+        timestamp: new Date(base.getTime() + 2000).toISOString(),
+        heart_rate: 130,
+      },
+    ];
+
+    const activity = await parseFitFile(fixturePath);
+
+    expect(activity.samples[0].heartRate).toBe(110);
+    expect(activity.samples[2].heartRate).toBe(130);
+    expect(activity.durationSec).toBe(2);
+  });
 });
