@@ -83,7 +83,11 @@ describe('Activities API flow', () => {
 
     expect(uploadResponse.status).toBe(201);
     expect(Array.isArray(uploadResponse.body.uploads)).toBe(true);
-    expect(uploadResponse.body.uploads.length).toBeGreaterThan(0);
+    expect(uploadResponse.body.uploads).toHaveLength(1);
+    expect(Array.isArray(uploadResponse.body.failures)).toBe(true);
+    expect(uploadResponse.body.failures).toHaveLength(1);
+    expect(uploadResponse.body.failures[0]?.error).toContain('same start time and duration');
+
     const activityId = uploadResponse.body.uploads[0]?.activityId;
     expect(activityId).toBeDefined();
     const savedActivity = db.activities.get(activityId!);

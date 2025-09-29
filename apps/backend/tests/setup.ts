@@ -164,8 +164,15 @@ function createPrismaMock(): PrismaMock {
         if (where?.id) {
           activities = activities.filter((activity) => activity.id === where.id);
         }
-        if (where?.userId) {
+        if (where && 'userId' in where) {
           activities = activities.filter((activity) => activity.userId === where.userId);
+        }
+        if (where?.startTime) {
+          const target = new Date(where.startTime).getTime();
+          activities = activities.filter((activity) => activity.startTime.getTime() === target);
+        }
+        if (typeof where?.durationSec === 'number') {
+          activities = activities.filter((activity) => activity.durationSec === where.durationSec);
         }
         const activity = activities[0];
         if (!activity) {
