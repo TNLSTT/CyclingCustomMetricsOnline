@@ -48,18 +48,22 @@ function resolveFitParserConstructor(module: unknown): FitParserConstructor {
 
 const FitParser = resolveFitParserConstructor(FitParserPkg);
 
-const parser = new FitParser({
-  force: true,
-  elapsedRecordField: true,
-  speedUnit: 'm/s',
-  lengthUnit: 'm',
-});
+function createParser() {
+  return new FitParser({
+    force: true,
+    elapsedRecordField: true,
+    speedUnit: 'm/s',
+    lengthUnit: 'm',
+  });
+}
 
 async function parseFitBuffer(fileBuffer: Buffer): Promise<{
   data: FitParserCallbackData;
   warnings: string[];
 }> {
   const warnings: string[] = [];
+
+  const parser = createParser();
 
   const data = await new Promise<FitParserCallbackData>((resolve, reject) => {
     parser.parse(fileBuffer, (error: unknown, parsed: FitParserCallbackData) => {
@@ -127,6 +131,24 @@ function convertSemicirclesToDegrees(value: unknown): number | null {
   return value * SEMICIRCLES_TO_DEGREES;
 }
 
+function parseTimestamp(value: FitRecord['timestamp']): number | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
+}
+
 function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedActivitySample {
   return {
     t,
@@ -146,26 +168,37 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
 
   const { data } = await parseFitBuffer(fileBuffer);
 
-  const records = (data.records ?? []).filter((record) => record.timestamp);
+  const timestampedRecords = (data.records ?? [])
+    .map((record) => {
+      const timestampMs = parseTimestamp(record.timestamp);
+      if (timestampMs == null) {
+        return null;
+      }
+      return { record, timestampMs };
+    })
+    .filter((value): value is { record: FitRecord; timestampMs: number } => value !== null);
 
-  if (records.length === 0) {
+  if (timestampedRecords.length === 0) {
     throw new Error('FIT file has no timestamped records.');
   }
 
-  const sortedRecords = records.sort((a, b) => {
-    const aTime = new Date(a.timestamp as Date | string).getTime();
-    const bTime = new Date(b.timestamp as Date | string).getTime();
-    return aTime - bTime;
-  });
+  const droppedRecords = (data.records ?? []).length - timestampedRecords.length;
+  if (droppedRecords > 0) {
+    logger.warn(
+      { droppedRecords },
+      'Dropped FIT records with invalid timestamps during normalization',
+    );
+  }
 
-  const startTime = new Date(sortedRecords[0].timestamp as Date | string);
-  const startMs = startTime.getTime();
+  const sortedRecords = timestampedRecords.sort((a, b) => a.timestampMs - b.timestampMs);
+
+  const startMs = sortedRecords[0]!.timestampMs;
+  const startTime = new Date(startMs);
 
   const samplesBySecond = new Map<number, NormalizedActivitySample>();
 
-  for (const record of sortedRecords) {
-    const timestamp = new Date(record.timestamp as Date | string).getTime();
-    const t = Math.max(0, Math.round((timestamp - startMs) / 1000));
+  for (const { record, timestampMs } of sortedRecords) {
+    const t = Math.max(0, Math.round((timestampMs - startMs) / 1000));
     const heartRate = sanitizeInt(record.heart_rate, 30, 240);
     const cadence = sanitizeInt(record.cadence, 0, 220);
     const power = sanitizeInt(record.power, 0, 2500);
