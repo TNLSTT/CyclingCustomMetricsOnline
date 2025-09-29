@@ -118,6 +118,13 @@ describe('Activities API flow', () => {
     expect(Array.isArray(intervalResponse.body.intervals)).toBe(true);
     expect(intervalResponse.body.intervals.length).toBeGreaterThan(0);
 
+    const powerStreamResponse = await request(app)
+      .get(`/api/activities/${activityId}/streams/power`)
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(powerStreamResponse.status).toBe(200);
+    expect(Array.isArray(powerStreamResponse.body.samples)).toBe(true);
+    expect(powerStreamResponse.body.samples.length).toBeGreaterThan(0);
+
     const historyResponse = await request(app)
       .get('/api/metrics/interval-efficiency/history')
       .set('Authorization', `Bearer ${authToken}`);

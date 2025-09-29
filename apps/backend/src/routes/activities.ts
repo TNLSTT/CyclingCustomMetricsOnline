@@ -194,6 +194,37 @@ activitiesRouter.get(
   }),
 );
 
+activitiesRouter.get(
+  '/:id/streams/power',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const samples = await prisma.activitySample.findMany({
+      where: {
+        activityId: req.params.id,
+        ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
+      },
+      orderBy: { t: 'asc' },
+      select: { t: true, power: true },
+    });
+
+    if (samples.length === 0) {
+      res.status(404).json({ error: 'Power stream not available' });
+      return;
+    }
+
+    const formatted = samples.map((sample) => ({
+      t: sample.t,
+      power: typeof sample.power === 'number' && Number.isFinite(sample.power) ? sample.power : null,
+    }));
+
+    res.json({ samples: formatted });
+  }),
+);
+
 activitiesRouter.post(
   '/:id/compute',
   asyncHandler(async (req, res) => {

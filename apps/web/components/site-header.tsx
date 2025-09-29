@@ -58,7 +58,9 @@ export function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-1 text-sm font-medium">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/' && pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}

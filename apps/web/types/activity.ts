@@ -29,6 +29,15 @@ export interface ActivityTrackResponse {
   };
 }
 
+export interface PowerStreamSample {
+  t: number;
+  power: number | null;
+}
+
+export interface PowerStreamResponse {
+  samples: PowerStreamSample[];
+}
+
 export interface PaginatedActivities {
   data: ActivitySummary[];
   page: number;
