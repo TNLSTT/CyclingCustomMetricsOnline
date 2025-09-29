@@ -9,6 +9,7 @@ import type {
   IntervalEfficiencyResponse,
   IntervalEfficiencyHistoryResponse,
   ActivityTrackResponse,
+  PowerStreamResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
 import type { AdaptationEdgesResponse } from '../types/adaptation';
@@ -90,6 +91,14 @@ export async function fetchActivityTrack(activityId: string, authToken?: string)
 export async function fetchIntervalEfficiency(activityId: string, authToken?: string) {
   return apiFetch<IntervalEfficiencyResponse>(
     `/activities/${activityId}/metrics/interval-efficiency`,
+    undefined,
+    authToken,
+  );
+}
+
+export async function fetchPowerStream(activityId: string, authToken?: string) {
+  return apiFetch<PowerStreamResponse>(
+    `/activities/${activityId}/streams/power`,
     undefined,
     authToken,
   );
