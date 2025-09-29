@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
 import type { NormalizedActivity } from '../types.js';
@@ -39,30 +39,58 @@ function buildSampleRows(
   }));
 }
 
-export async function saveActivity(
-  normalized: NormalizedActivity,
-  userId?: string,
-) {
+const DUPLICATE_ACTIVITY_MESSAGE =
+  'An activity with the same start time and duration already exists for this user.';
+
+function isDuplicateActivityError(error: unknown): error is Error {
+  return error instanceof Error && error.message === DUPLICATE_ACTIVITY_MESSAGE;
+}
+
+export async function saveActivity(normalized: NormalizedActivity, userId?: string) {
   if (normalized.samples.length === 0) {
     throw new Error('No samples parsed from FIT file.');
   }
 
-  const activity = await prisma.$transaction(async (tx) => {
-    const created = await tx.activity.create({
-      data: buildActivityData(normalized, userId),
+  try {
+    const activity = await prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findFirst({
+        where: {
+          startTime: normalized.startTime,
+          durationSec: normalized.durationSec,
+          userId: userId ?? null,
+        },
+      });
+
+      if (existing) {
+        throw new Error(DUPLICATE_ACTIVITY_MESSAGE);
+      }
+
+      const created = await tx.activity.create({
+        data: buildActivityData(normalized, userId),
+      });
+
+      const rows = buildSampleRows(created.id, normalized);
+
+      for (let i = 0; i < rows.length; i += SAMPLE_INSERT_CHUNK) {
+        const chunk = rows.slice(i, i + SAMPLE_INSERT_CHUNK);
+        await tx.activitySample.createMany({ data: chunk });
+      }
+
+      return created;
     });
 
-    const rows = buildSampleRows(created.id, normalized);
-
-    for (let i = 0; i < rows.length; i += SAMPLE_INSERT_CHUNK) {
-      const chunk = rows.slice(i, i + SAMPLE_INSERT_CHUNK);
-      await tx.activitySample.createMany({ data: chunk });
+    return activity;
+  } catch (error) {
+    if (isDuplicateActivityError(error)) {
+      throw error;
     }
 
-    return created;
-  });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new Error(DUPLICATE_ACTIVITY_MESSAGE);
+    }
 
-  return activity;
+    throw error;
+  }
 }
 
 export async function deleteActivity(activityId: string, userId?: string) {

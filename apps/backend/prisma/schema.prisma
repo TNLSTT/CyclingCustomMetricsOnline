@@ -47,6 +47,8 @@ model Activity {
   createdAt     DateTime         @default(now())
   samples       ActivitySample[]
   metrics       MetricResult[]
+
+  @@unique([userId, startTime, durationSec])
 }
 
 model ActivitySample {

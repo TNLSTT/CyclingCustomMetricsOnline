@@ -11,7 +11,7 @@ async function getActivities(token?: string): Promise<PaginatedActivities> {
   const headers: HeadersInit | undefined = token
     ? { Authorization: `Bearer ${token}` }
     : undefined;
-  const response = await fetch(`${env.internalApiUrl}/activities?page=1&pageSize=50`, {
+  const response = await fetch(`${env.internalApiUrl}/activities?page=1&pageSize=200`, {
     cache: 'no-store',
     headers,
   });
