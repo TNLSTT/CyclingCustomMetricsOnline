@@ -22,7 +22,7 @@ async function main() {
   }
 }
 
-main()
+void main()
   .catch((error) => {
     console.error('Failed to backfill metrics', error);
     process.exitCode = 1;

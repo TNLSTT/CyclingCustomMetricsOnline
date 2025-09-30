@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 const tabs = [
   { href: '/metrics/registry', label: 'Registry' },
   { href: '/metrics/kj-in-interval', label: 'KJ in interval' },
+  { href: '/metrics/depth-analysis', label: 'Depth analysis' },
 ];
 
 export function MetricTabsNav() {

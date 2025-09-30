@@ -14,6 +14,7 @@ import type {
 import type { Profile } from '../types/profile';
 import type { AdaptationEdgesResponse } from '../types/adaptation';
 import type { DurabilityAnalysisResponse } from '../types/durability-analysis';
+import type { DepthAnalysisResponse } from '../types/depth-analysis';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -153,6 +154,18 @@ export async function fetchDurabilityAnalysis(
   const search = params.toString();
   const path = search.length > 0 ? `/durability-analysis?${search}` : '/durability-analysis';
   return apiFetch<DurabilityAnalysisResponse>(path, undefined, authToken);
+}
+
+export async function fetchDepthAnalysis(
+  thresholdKj: number,
+  minPowerWatts: number,
+  authToken?: string,
+) {
+  const params = new URLSearchParams({
+    thresholdKj: String(thresholdKj),
+    minPower: String(minPowerWatts),
+  });
+  return apiFetch<DepthAnalysisResponse>(`/metrics/depth-analysis?${params.toString()}`, undefined, authToken);
 }
 
 export async function deleteActivity(activityId: string, authToken?: string) {

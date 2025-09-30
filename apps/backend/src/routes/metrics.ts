@@ -7,6 +7,7 @@ import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency
 import { logger } from '../logger.js';
 import { computeAdaptationEdges } from '../services/adaptationEdgesService.js';
 import { computeMovingAverageInputs } from '../services/movingAveragesService.js';
+import { computeDepthAnalysis } from '../services/depthAnalysisService.js';
 
 type IntervalEfficiencyHistoryRow = {
   activityId: string;
@@ -170,6 +171,30 @@ metricsRouter.get(
       res.json({ days });
     } catch (error) {
       logger.error({ err: error }, 'Failed to compute moving averages');
+      throw error;
+    }
+  }),
+);
+
+metricsRouter.get(
+  '/depth-analysis',
+  asyncHandler(async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      const thresholdKj = Number.parseFloat((req.query.thresholdKj as string | undefined) ?? '2000');
+      const minPower = Number.parseFloat((req.query.minPower as string | undefined) ?? '180');
+
+      const safeThreshold = Number.isFinite(thresholdKj) && thresholdKj >= 0 ? thresholdKj : 0;
+      const safeMinPower = Number.isFinite(minPower) && minPower >= 0 ? minPower : 0;
+
+      const analysis = await computeDepthAnalysis(userId, {
+        thresholdKj: safeThreshold,
+        minPowerWatts: safeMinPower,
+      });
+
+      res.json(analysis);
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to compute depth analysis');
       throw error;
     }
   }),
