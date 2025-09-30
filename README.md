@@ -136,16 +136,61 @@ Metrics live under `apps/backend/src/metrics`:
 - `runMetrics(activityId, metricKeys?)` orchestrates loading samples, executing metric modules, and upserting `MetricResult` rows.
 - Adding a new metric requires creating a file alongside `hcsr.ts`, exporting it from the registry, and writing a Vitest suite.
 
-### HCSR (Heart Rate to Cadence Scaling Ratio)
+### Metric Catalog
 
-Implementation details (`apps/backend/src/metrics/hcsr.ts`):
+#### HR-to-Cadence Scaling Ratio (HCSR)
 
-1. Filter samples with cadence ≥ 20 rpm and valid heart rate, bin into 10 rpm buckets.
-2. Require ≥ 60 seconds per bucket; compute median HR and IQR.
-3. Apply Theil–Sen regression (falling back to OLS) over bucket medians for slope/intercept.
-4. Compare linear vs. piecewise fits for nonlinearity delta; compute R² diagnostics.
-5. Split ride halves to detect fatigue-related slope drift.
-6. Persist summary metrics and per-bucket series for visualization.
+File: `apps/backend/src/metrics/hcsr.ts`
+
+- Buckets samples with cadence ≥ 20 rpm into 10 rpm windows (≥ 60 seconds required) and records median heart rate plus IQR fo
+r each bucket.
+- Fits a Theil–Sen regression (fallback to OLS) across cadence medians to surface the **slope** (bpm per rpm) and **intercept**
+ (bpm) along with the **R²** goodness of fit.
+- Compares single-line and piecewise regressions to quantify non-linearity, and contrasts first vs. second half slopes to flag
+ fatigue-driven drift.
+- Summary output includes slope/intercept, linear vs. piecewise R², bucket counts, and fatigue deltas. The series payload exp
+oses each cadence bucket with median/25th/75th percentile heart rate for charting.
+
+#### Normalized Power
+
+File: `apps/backend/src/metrics/normalizedPower.ts`
+
+- Uses 30-second rolling averages (sample-rate aware) to compute **normalized power**, **average power**, and the **variabilit
+y index**.
+- Tracks coasting prevalence (≤ 5 W), counts of valid/total power samples, and window metadata to aid data-quality audits.
+- Emits a rolling power series so the frontend can visualize normalized power smoothing alongside instantaneous power.
+
+#### Interval Efficiency
+
+File: `apps/backend/src/metrics/intervalEfficiency.ts`
+
+- Splits rides into 1-hour blocks and averages power, heart rate, cadence, and temperature per interval.
+- Computes **watts-per-heart-rate** to highlight aerobic efficiency trends across long endurance rides.
+- Series rows expose each interval’s averages for tabular summaries or stacked charts; summaries report ride duration and inte
+rval counts.
+
+#### Late-ride Aerobic Efficiency
+
+File: `apps/backend/src/metrics/lateAerobicEfficiency.ts`
+
+- Focuses on the final 35 minutes of a ride while skipping the last 5-minute cool-down buffer.
+- Calculates average power, heart rate, and their **watts-per-bpm** ratio to assess late-ride durability.
+- Guards against short rides by reporting nulls when the analysis window cannot be satisfied, and logs sample counts for quic
+k validation.
+
+#### Watts/HR Efficiency Curve *(planned)*
+
+File: `apps/backend/src/metrics/whrEfficiency.ts`
+
+- Placeholder for a future aerobic decoupling visual that will chart percentiles of the power-to-heart-rate ratio over time.
+- Currently returns a “not implemented” summary so the UI can label the metric as upcoming without failing computations.
+
+#### Torque Variability Index *(planned)*
+
+File: `apps/backend/src/metrics/tvi.ts`
+
+- Planned analysis to evaluate on-bike torque smoothness using cadence and power streams.
+- Presently emits a placeholder summary noting the dependency on higher-resolution torque reconstruction.
 
 ### Durability score
 
