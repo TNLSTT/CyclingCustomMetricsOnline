@@ -289,11 +289,11 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
   const segmentComparison = [
     {
       segment: 'Early',
-      value: ride.segments.early.normalizedPowerPctFtp ?? 0,
+      value: ride.segments.early.stabilizedPowerPctFtp ?? 0,
     },
     {
       segment: 'Late',
-      value: ride.segments.late.normalizedPowerPctFtp ?? 0,
+      value: ride.segments.late.stabilizedPowerPctFtp ?? 0,
     },
   ];
 
@@ -373,7 +373,7 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Early vs. late normalized power</CardTitle>
+          <CardTitle className="text-base font-semibold">Early vs. late stabilized power</CardTitle>
           <CardDescription>Compare FTP-relative output across the opening and closing thirds.</CardDescription>
         </CardHeader>
         <CardContent className="h-[280px]">
@@ -383,10 +383,10 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
               <XAxis dataKey="segment" className="text-xs" />
               <YAxis className="text-xs" tickFormatter={(value) => `${value.toFixed(0)}%`} />
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(1)}%`, 'NP vs FTP']}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, 'Stabilized vs FTP']}
                 contentStyle={{ fontSize: '0.75rem' }}
               />
-              <Bar dataKey="value" name="NP % FTP" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" name="Stabilized % FTP" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -402,7 +402,7 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Segment</TableHead>
-                <TableHead>NP (% FTP)</TableHead>
+                <TableHead>Stabilized (% FTP)</TableHead>
                 <TableHead>Avg power (W)</TableHead>
                 <TableHead>Avg HR (bpm)</TableHead>
                 <TableHead>HR:Power</TableHead>
@@ -414,7 +414,7 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
                 return (
                   <TableRow key={segment.label}>
                     <TableCell className="capitalize">{segment.label}</TableCell>
-                    <TableCell>{formatNumber(segment.normalizedPowerPctFtp, 1)}</TableCell>
+                    <TableCell>{formatNumber(segment.stabilizedPowerPctFtp, 1)}</TableCell>
                     <TableCell>{formatNumber(segment.averagePowerWatts, 0)}</TableCell>
                     <TableCell>{formatNumber(segment.averageHeartRateBpm, 0)}</TableCell>
                     <TableCell>
@@ -651,7 +651,7 @@ export function DurabilityAnalysisClient({
                   >
                     Duration
                   </TableHead>
-                  <TableHead>NP (W)</TableHead>
+                  <TableHead>Stabilized power (W)</TableHead>
                   <TableHead>Avg HR</TableHead>
                   <TableHead
                     className="cursor-pointer"
@@ -680,7 +680,7 @@ export function DurabilityAnalysisClient({
                     </TableCell>
                     <TableCell>{ride.source}</TableCell>
                     <TableCell>{formatDuration(ride.durationSec)}</TableCell>
-                    <TableCell>{formatNumber(ride.normalizedPowerWatts, 0)}</TableCell>
+                    <TableCell>{formatNumber(ride.stabilizedPowerWatts, 0)}</TableCell>
                     <TableCell>{formatNumber(ride.averageHeartRateBpm, 0)}</TableCell>
                     <TableCell>
                       <ScoreBadge score={ride.durabilityScore} />
@@ -705,18 +705,20 @@ export function DurabilityAnalysisClient({
                   <p className="font-semibold text-foreground">{formatDuration(selectedRide.durationSec)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">TSS (est)</p>
-                  <p className="font-semibold text-foreground">{formatNumber(selectedRide.tss, 0)}</p>
+                  <p className="text-muted-foreground">Training load score (est)</p>
+                  <p className="font-semibold text-foreground">
+                    {formatNumber(selectedRide.trainingLoadScore, 0)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Total energy</p>
                   <p className="font-semibold text-foreground">{formatNumber(selectedRide.totalKj, 1)} kJ</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Normalized power</p>
+                  <p className="text-muted-foreground">Stabilized power</p>
                   <p className="font-semibold text-foreground">
-                    {formatNumber(selectedRide.normalizedPowerWatts, 0)} W (
-                    {formatNumber(selectedRide.normalizedPowerPctFtp, 1)}% FTP)
+                    {formatNumber(selectedRide.stabilizedPowerWatts, 0)} W (
+                    {formatNumber(selectedRide.stabilizedPowerPctFtp, 1)}% FTP)
                   </p>
                 </div>
               </div>
@@ -737,7 +739,7 @@ export function DurabilityAnalysisClient({
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
             Scores start at 100 points. We subtract half a point for each percentage point drop in
-            normalized power (as % FTP) from the opening to closing thirds, and we deduct 0.75 points
+            stabilized power (as % FTP) from the opening to closing thirds, and we deduct 0.75 points
             for every percentage point of positive heart-rate drift. To recognize strong finishes, we
             add half a point for every percentage point that the best 20-minute power in the final
             third exceeds FTP. The score is clamped between 0 and 100.

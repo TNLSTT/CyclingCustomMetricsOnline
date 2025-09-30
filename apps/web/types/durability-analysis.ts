@@ -9,8 +9,8 @@ export interface DurabilitySegmentMetrics {
   startSec: number;
   endSec: number;
   durationSec: number;
-  normalizedPowerWatts: number | null;
-  normalizedPowerPctFtp: number | null;
+  stabilizedPowerWatts: number | null;
+  stabilizedPowerPctFtp: number | null;
   averagePowerWatts: number | null;
   averageHeartRateBpm: number | null;
   heartRatePowerRatio: number | null;
@@ -22,12 +22,12 @@ export interface DurabilityRideAnalysis {
   source: string;
   durationSec: number;
   ftpWatts: number | null;
-  normalizedPowerWatts: number | null;
-  normalizedPowerPctFtp: number | null;
+  stabilizedPowerWatts: number | null;
+  stabilizedPowerPctFtp: number | null;
   averagePowerWatts: number | null;
   averageHeartRateBpm: number | null;
   totalKj: number | null;
-  tss: number | null;
+  trainingLoadScore: number | null;
   heartRateDriftPct: number | null;
   bestLateTwentyMinWatts: number | null;
   bestLateTwentyMinPctFtp: number | null;

@@ -56,20 +56,20 @@ export function computeRollingAverages(
   return rolling;
 }
 
-export function computeNormalizedPower(
+export function computeStabilizedPower(
   samples: PowerSample[],
   windowSize: number,
-): { normalizedPower: number | null; rolling: Array<{ t: number; rollingAvg: number }> } {
+): { stabilizedPower: number | null; rolling: Array<{ t: number; rollingAvg: number }> } {
   const rolling = computeRollingAverages(samples, windowSize);
 
   if (rolling.length === 0) {
-    return { normalizedPower: null, rolling };
+    return { stabilizedPower: null, rolling };
   }
 
   const meanFourth = rolling.reduce((sum, entry) => sum + entry.rollingAvg ** 4, 0) / rolling.length;
-  const normalizedPower = meanFourth > 0 ? meanFourth ** 0.25 : 0;
+  const stabilizedPower = meanFourth > 0 ? meanFourth ** 0.25 : 0;
 
-  return { normalizedPower, rolling };
+  return { stabilizedPower, rolling };
 }
 
 export function computeBestRollingAverage(

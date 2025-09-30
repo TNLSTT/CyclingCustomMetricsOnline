@@ -5,7 +5,7 @@ import type { MetricSample } from '../metrics/types.js';
 import {
   computeAveragePower,
   computeBestRollingAverage,
-  computeNormalizedPower,
+  computeStabilizedPower,
   extractPowerSamples,
 } from '../utils/power.js';
 
@@ -28,8 +28,8 @@ export interface DurabilitySegmentMetrics {
   startSec: number;
   endSec: number;
   durationSec: number;
-  normalizedPowerWatts: number | null;
-  normalizedPowerPctFtp: number | null;
+  stabilizedPowerWatts: number | null;
+  stabilizedPowerPctFtp: number | null;
   averagePowerWatts: number | null;
   averageHeartRateBpm: number | null;
   heartRatePowerRatio: number | null;
@@ -41,12 +41,12 @@ export interface DurabilityRideAnalysis {
   source: string;
   durationSec: number;
   ftpWatts: number | null;
-  normalizedPowerWatts: number | null;
-  normalizedPowerPctFtp: number | null;
+  stabilizedPowerWatts: number | null;
+  stabilizedPowerPctFtp: number | null;
   averagePowerWatts: number | null;
   averageHeartRateBpm: number | null;
   totalKj: number | null;
-  tss: number | null;
+  trainingLoadScore: number | null;
   heartRateDriftPct: number | null;
   bestLateTwentyMinWatts: number | null;
   bestLateTwentyMinPctFtp: number | null;
@@ -170,7 +170,7 @@ function computeSegmentMetrics(
   const durationSec = Math.max(0, endSec - startSec);
   const powerSamples = extractPowerSamples(samples);
   const windowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
-  const { normalizedPower } = computeNormalizedPower(powerSamples, windowSize);
+  const { stabilizedPower } = computeStabilizedPower(powerSamples, windowSize);
   const averagePower = computeAveragePower(powerSamples);
   const averageHeartRate = computeAverageHeartRate(samples);
   const ratio =
@@ -183,10 +183,10 @@ function computeSegmentMetrics(
     startSec,
     endSec,
     durationSec,
-    normalizedPowerWatts: normalizedPower != null ? round(normalizedPower, 1) : null,
-    normalizedPowerPctFtp:
-      normalizedPower != null && ftpWatts && ftpWatts > 0
-        ? round((normalizedPower / ftpWatts) * 100, 1)
+    stabilizedPowerWatts: stabilizedPower != null ? round(stabilizedPower, 1) : null,
+    stabilizedPowerPctFtp:
+      stabilizedPower != null && ftpWatts && ftpWatts > 0
+        ? round((stabilizedPower / ftpWatts) * 100, 1)
         : null,
     averagePowerWatts: averagePower != null ? round(averagePower, 1) : null,
     averageHeartRateBpm: averageHeartRate != null ? round(averageHeartRate, 0) : null,
@@ -195,15 +195,15 @@ function computeSegmentMetrics(
 }
 
 export function calculateDurabilityScore(
-  earlyNpPct: number | null,
-  lateNpPct: number | null,
+  earlyStabilizedPct: number | null,
+  lateStabilizedPct: number | null,
   heartRateDriftPct: number | null,
   bestLateTwentyMinPctFtp: number | null,
 ): number {
   let score = 100;
 
-  if (earlyNpPct != null && lateNpPct != null) {
-    const drop = earlyNpPct - lateNpPct;
+  if (earlyStabilizedPct != null && lateStabilizedPct != null) {
+    const drop = earlyStabilizedPct - lateStabilizedPct;
     if (drop > 0) {
       score -= drop * 0.5;
     } else {
@@ -262,16 +262,16 @@ function computeRideAnalysis(
   const sampleRate = inferSampleRate(activity, metricSamples);
   const totalWindow = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
   const powerSamples = extractPowerSamples(metricSamples);
-  const { normalizedPower } = computeNormalizedPower(powerSamples, totalWindow);
+  const { stabilizedPower } = computeStabilizedPower(powerSamples, totalWindow);
   const averagePower = computeAveragePower(powerSamples);
   const averageHeartRate = computeAverageHeartRate(metricSamples);
   const totalJoules = computeTotalJoules(metricSamples, sampleRate);
   const totalKj = totalJoules != null ? round(totalJoules / 1000, 1) : null;
-  const intensityFactor =
-    normalizedPower != null && ftpWatts && ftpWatts > 0 ? normalizedPower / ftpWatts : null;
-  const tss =
-    intensityFactor != null
-      ? round(intensityFactor * intensityFactor * (activity.durationSec / 3600) * 100, 1)
+  const intensityRatio =
+    stabilizedPower != null && ftpWatts && ftpWatts > 0 ? stabilizedPower / ftpWatts : null;
+  const trainingLoadScore =
+    intensityRatio != null
+      ? round(intensityRatio * intensityRatio * (activity.durationSec / 3600) * 100, 1)
       : null;
 
   const earlyEnd = activity.durationSec * 0.3;
@@ -303,8 +303,8 @@ function computeRideAnalysis(
       : null;
 
   const durabilityScore = calculateDurabilityScore(
-    segments.early.normalizedPowerPctFtp,
-    segments.late.normalizedPowerPctFtp,
+    segments.early.stabilizedPowerPctFtp,
+    segments.late.stabilizedPowerPctFtp,
     heartRateDriftPct,
     bestLateTwentyMinutePct,
   );
@@ -317,15 +317,15 @@ function computeRideAnalysis(
     source: activity.source,
     durationSec: activity.durationSec,
     ftpWatts,
-    normalizedPowerWatts: normalizedPower != null ? round(normalizedPower, 1) : null,
-    normalizedPowerPctFtp:
-      normalizedPower != null && ftpWatts && ftpWatts > 0
-        ? round((normalizedPower / ftpWatts) * 100, 1)
+    stabilizedPowerWatts: stabilizedPower != null ? round(stabilizedPower, 1) : null,
+    stabilizedPowerPctFtp:
+      stabilizedPower != null && ftpWatts && ftpWatts > 0
+        ? round((stabilizedPower / ftpWatts) * 100, 1)
         : null,
     averagePowerWatts: averagePower != null ? round(averagePower, 1) : null,
     averageHeartRateBpm: averageHeartRate != null ? round(averageHeartRate, 0) : null,
     totalKj,
-    tss,
+    trainingLoadScore,
     heartRateDriftPct,
     bestLateTwentyMinWatts: bestLateTwentyMinute != null ? round(bestLateTwentyMinute, 1) : null,
     bestLateTwentyMinPctFtp: bestLateTwentyMinutePct,

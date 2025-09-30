@@ -30,7 +30,7 @@ interface ActivityDetailClientProps {
   activity: ActivitySummary;
   initialHcsr?: MetricResultDetail | null;
   initialIntervalEfficiency?: IntervalEfficiencyResponse | null;
-  initialNormalizedPower?: MetricResultDetail | null;
+  initialStabilizedPower?: MetricResultDetail | null;
   initialLateAerobicEfficiency?: MetricResultDetail | null;
 }
 
@@ -52,8 +52,8 @@ type HcsrSeries = Array<{
   hr75?: number;
 }>;
 
-type NormalizedPowerSummary = {
-  normalizedPower?: number | null;
+type StabilizedPowerSummary = {
+  stabilizedPower?: number | null;
   averagePower?: number | null;
   variabilityIndex?: number | null;
   coastingShare?: number | null;
@@ -64,7 +64,7 @@ type NormalizedPowerSummary = {
   windowSeconds?: number | null;
 };
 
-type NormalizedPowerSeries = Array<{
+type StabilizedPowerSeries = Array<{
   t: number;
   rolling_avg_power_w: number;
 }>;
@@ -114,9 +114,9 @@ function parseHcsrSeries(metric: MetricResultDetail | null | undefined): HcsrSer
   });
 }
 
-function parseNormalizedPowerSummary(
+function parseStabilizedPowerSummary(
   metric: MetricResultDetail | null | undefined,
-): NormalizedPowerSummary {
+): StabilizedPowerSummary {
   if (!metric) {
     return {};
   }
@@ -125,7 +125,7 @@ function parseNormalizedPowerSummary(
     typeof summary[key] === 'number' ? (summary[key] as number) : null;
 
   return {
-    normalizedPower: readNumber('normalized_power_w'),
+    stabilizedPower: readNumber('stabilized_power_w'),
     averagePower: readNumber('average_power_w'),
     variabilityIndex: readNumber('variability_index'),
     coastingShare: readNumber('coasting_share'),
@@ -137,13 +137,13 @@ function parseNormalizedPowerSummary(
   };
 }
 
-function parseNormalizedPowerSeries(
+function parseStabilizedPowerSeries(
   metric: MetricResultDetail | null | undefined,
-): NormalizedPowerSeries {
+): StabilizedPowerSeries {
   if (!metric || !Array.isArray(metric.series)) {
     return [];
   }
-  return metric.series.filter((entry): entry is NormalizedPowerSeries[number] => {
+  return metric.series.filter((entry): entry is StabilizedPowerSeries[number] => {
     return (
       typeof entry === 'object' &&
       entry !== null &&
@@ -176,7 +176,7 @@ export function ActivityDetailClient({
   activity,
   initialHcsr,
   initialIntervalEfficiency,
-  initialNormalizedPower,
+  initialStabilizedPower,
   initialLateAerobicEfficiency,
 }: ActivityDetailClientProps) {
   const { data: session } = useSession();
@@ -186,8 +186,8 @@ export function ActivityDetailClient({
   const [intervalEfficiency, setIntervalEfficiency] = useState<IntervalEfficiencyResponse | null>(
     initialIntervalEfficiency ?? null,
   );
-  const [normalizedMetric, setNormalizedMetric] = useState<MetricResultDetail | null | undefined>(
-    initialNormalizedPower,
+  const [stabilizedMetric, setStabilizedMetric] = useState<MetricResultDetail | null | undefined>(
+    initialStabilizedPower,
   );
   const [lateAerobicMetric, setLateAerobicMetric] = useState<MetricResultDetail | null | undefined>(
     initialLateAerobicEfficiency,
@@ -198,8 +198,8 @@ export function ActivityDetailClient({
 
   const hcsrSummary = parseHcsrSummary(metric ?? null);
   const hcsrSeries = parseHcsrSeries(metric ?? null);
-  const normalizedSummary = parseNormalizedPowerSummary(normalizedMetric ?? null);
-  const normalizedSeries = parseNormalizedPowerSeries(normalizedMetric ?? null);
+  const stabilizedSummary = parseStabilizedPowerSummary(stabilizedMetric ?? null);
+  const stabilizedSeries = parseStabilizedPowerSeries(stabilizedMetric ?? null);
   const lateAerobicSummary = parseLateAerobicSummary(lateAerobicMetric ?? null);
   const intervalSummaries = intervalEfficiency?.intervals ?? [];
   const hasIntervalData = intervalSummaries.length > 0;
@@ -229,19 +229,19 @@ export function ActivityDetailClient({
       try {
         await computeMetrics(
           activity.id,
-          ['hcsr', 'interval-efficiency', 'normalized-power', 'late-aerobic-efficiency'],
+          ['hcsr', 'interval-efficiency', 'stabilized-power', 'late-aerobic-efficiency'],
           session?.accessToken,
         );
-        const [latestHcsr, latestIntervalEfficiency, latestNormalized, latestLateAerobic] =
+        const [latestHcsr, latestIntervalEfficiency, latestStabilized, latestLateAerobic] =
           await Promise.all([
             fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
             fetchIntervalEfficiency(activity.id, session?.accessToken),
-            fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
+            fetchMetricResult(activity.id, 'stabilized-power', session?.accessToken),
             fetchMetricResult(activity.id, 'late-aerobic-efficiency', session?.accessToken),
           ]);
         setMetric(latestHcsr);
         setIntervalEfficiency(latestIntervalEfficiency);
-        setNormalizedMetric(latestNormalized);
+        setStabilizedMetric(latestStabilized);
         setLateAerobicMetric(latestLateAerobic);
       } catch (err) {
         setError((err as Error).message);
@@ -249,17 +249,17 @@ export function ActivityDetailClient({
     });
   };
 
-  const normalizedPowerDisplay = formatNumber(normalizedSummary.normalizedPower, 1);
-  const averagePowerDisplay = formatNumber(normalizedSummary.averagePower, 1);
-  const variabilityDisplay = formatNumber(normalizedSummary.variabilityIndex, 3);
+  const stabilizedPowerDisplay = formatNumber(stabilizedSummary.stabilizedPower, 1);
+  const averagePowerDisplay = formatNumber(stabilizedSummary.averagePower, 1);
+  const variabilityDisplay = formatNumber(stabilizedSummary.variabilityIndex, 3);
   const coastingShareDisplay =
-    normalizedSummary.coastingShare != null
-      ? `${formatNumber(normalizedSummary.coastingShare * 100, 1)}%`
+    stabilizedSummary.coastingShare != null
+      ? `${formatNumber(stabilizedSummary.coastingShare * 100, 1)}%`
       : '—';
-  const validSamplesDisplay = formatNumber(normalizedSummary.validPowerSamples);
-  const rollingWindowsDisplay = formatNumber(normalizedSummary.rollingWindowCount);
-  const windowSecondsDisplay = formatNumber(normalizedSummary.windowSeconds);
-  const normalizedSeriesPreview = normalizedSeries.slice(-10);
+  const validSamplesDisplay = formatNumber(stabilizedSummary.validPowerSamples);
+  const rollingWindowsDisplay = formatNumber(stabilizedSummary.rollingWindowCount);
+  const windowSecondsDisplay = formatNumber(stabilizedSummary.windowSeconds);
+  const stabilizedSeriesPreview = stabilizedSeries.slice(-10);
   const lateWattsPerBpmDisplay = formatNumber(lateAerobicSummary.wattsPerBpm, 3);
   const lateAveragePowerDisplay = formatNumber(lateAerobicSummary.averagePower, 1);
   const lateAverageHrDisplay = formatNumber(lateAerobicSummary.averageHeartRate, 1);
@@ -405,8 +405,8 @@ export function ActivityDetailClient({
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricSummaryCard
-          title="Normalized power"
-          value={normalizedPowerDisplay}
+          title="Stabilized power"
+          value={stabilizedPowerDisplay}
           units="W"
           description="30 s rolling-power weighted effort"
         />
@@ -419,7 +419,7 @@ export function ActivityDetailClient({
         <MetricSummaryCard
           title="Variability index"
           value={variabilityDisplay}
-          description="Normalized to average power ratio"
+          description="Stabilized to average power ratio"
         />
         <MetricSummaryCard
           title="Coasting share"
@@ -504,10 +504,10 @@ export function ActivityDetailClient({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Normalized power trend</CardTitle>
+          <CardTitle>Stabilized power trend</CardTitle>
         </CardHeader>
         <CardContent>
-          {normalizedSeries.length > 0 ? (
+          {stabilizedSeries.length > 0 ? (
             <div className="space-y-4">
               <Table>
                 <TableHeader>
@@ -517,7 +517,7 @@ export function ActivityDetailClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {normalizedSeriesPreview.map((entry) => (
+                  {stabilizedSeriesPreview.map((entry) => (
                     <TableRow key={`${entry.t}-${entry.rolling_avg_power_w}`}>
                       <TableCell>{formatNumber(entry.t)}</TableCell>
                       <TableCell>{formatNumber(entry.rolling_avg_power_w, 1)}</TableCell>
@@ -526,7 +526,7 @@ export function ActivityDetailClient({
                 </TableBody>
               </Table>
               <p className="text-xs text-muted-foreground">
-                Showing {normalizedSeriesPreview.length} of {normalizedSeries.length} windows (last 10).
+                Showing {stabilizedSeriesPreview.length} of {stabilizedSeries.length} windows (last 10).
               </p>
             </div>
           ) : (

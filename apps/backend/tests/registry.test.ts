@@ -8,7 +8,7 @@ describe('metric registry', () => {
     expect(metricRegistry).toHaveProperty('interval-efficiency');
     expect(metricRegistry).toHaveProperty('tvi');
     expect(metricRegistry).toHaveProperty('whr-efficiency');
-    expect(metricRegistry).toHaveProperty('normalized-power');
+    expect(metricRegistry).toHaveProperty('stabilized-power');
     expect(metricRegistry).toHaveProperty('late-aerobic-efficiency');
 
     const definitions = listMetricDefinitions();
@@ -17,7 +17,7 @@ describe('metric registry', () => {
     expect(keys).toContain('interval-efficiency');
     expect(keys).toContain('tvi');
     expect(keys).toContain('whr-efficiency');
-    expect(keys).toContain('normalized-power');
+    expect(keys).toContain('stabilized-power');
     expect(keys).toContain('late-aerobic-efficiency');
   });
 });

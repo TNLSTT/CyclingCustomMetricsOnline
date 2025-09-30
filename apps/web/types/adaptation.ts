@@ -1,7 +1,7 @@
 export interface AdaptationBlockSummary {
   start: string;
   end: string;
-  totalTss: number;
+  totalTrainingLoad: number;
   totalKj: number;
   dayCount: number;
   activityIds: string[];
@@ -9,7 +9,7 @@ export interface AdaptationBlockSummary {
 
 export interface AdaptationWindowSummary {
   windowDays: number;
-  bestTss: AdaptationBlockSummary | null;
+  bestTrainingLoad: AdaptationBlockSummary | null;
   bestKj: AdaptationBlockSummary | null;
 }
 

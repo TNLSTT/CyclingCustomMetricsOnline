@@ -39,12 +39,12 @@ async function getHcsrMetric(id: string, token?: string): Promise<MetricResultDe
   return (await response.json()) as MetricResultDetail;
 }
 
-async function getNormalizedPowerMetric(
+async function getStabilizedPowerMetric(
   id: string,
   token?: string,
 ): Promise<MetricResultDetail | null> {
   const headers: HeadersInit | undefined = token ? { Authorization: `Bearer ${token}` } : undefined;
-  const response = await fetch(`${env.internalApiUrl}/activities/${id}/metrics/normalized-power`, {
+  const response = await fetch(`${env.internalApiUrl}/activities/${id}/metrics/stabilized-power`, {
     cache: 'no-store',
     headers,
   });
@@ -52,7 +52,7 @@ async function getNormalizedPowerMetric(
     return null;
   }
   if (!response.ok) {
-    throw new Error('Failed to load normalized power metric');
+    throw new Error('Failed to load stabilized power metric');
   }
   return (await response.json()) as MetricResultDetail;
 }
@@ -107,11 +107,11 @@ export default async function ActivityDetailPage({
   }
 
   const token = session?.accessToken;
-  const [activity, hcsr, intervalEfficiency, normalizedPower, lateAerobic] = await Promise.all([
+  const [activity, hcsr, intervalEfficiency, stabilizedPower, lateAerobic] = await Promise.all([
     getActivity(params.id, token),
     getHcsrMetric(params.id, token),
     getIntervalEfficiency(params.id, token),
-    getNormalizedPowerMetric(params.id, token),
+    getStabilizedPowerMetric(params.id, token),
     getLateAerobicMetric(params.id, token),
   ]);
 
@@ -120,7 +120,7 @@ export default async function ActivityDetailPage({
       activity={activity}
       initialHcsr={hcsr}
       initialIntervalEfficiency={intervalEfficiency}
-      initialNormalizedPower={normalizedPower}
+      initialStabilizedPower={stabilizedPower}
       initialLateAerobicEfficiency={lateAerobic}
     />
   );

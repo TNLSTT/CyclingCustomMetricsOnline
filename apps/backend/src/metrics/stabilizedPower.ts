@@ -1,4 +1,4 @@
-import { computeAveragePower, computeNormalizedPower, extractPowerSamples } from '../utils/power.js';
+import { computeAveragePower, computeStabilizedPower, extractPowerSamples } from '../utils/power.js';
 
 import type { MetricModule } from './types.js';
 
@@ -10,13 +10,13 @@ function toFixedNumber(value: number, fractionDigits: number) {
   return Math.round(value * factor) / factor;
 }
 
-export const normalizedPowerMetric: MetricModule = {
+export const stabilizedPowerMetric: MetricModule = {
   definition: {
-    key: 'normalized-power',
-    name: 'Normalized Power',
+    key: 'stabilized-power',
+    name: 'Stabilized Power',
     version: 1,
     description:
-      'Computes normalized power using 30-second rolling averages alongside pacing diagnostics.',
+      'Computes stabilized power using 30-second rolling averages alongside pacing diagnostics.',
     units: 'W',
     computeConfig: {
       windowSeconds: WINDOW_SECONDS,
@@ -35,7 +35,7 @@ export const normalizedPowerMetric: MetricModule = {
     if (validCount === 0) {
       return {
         summary: {
-          normalized_power_w: null,
+          stabilized_power_w: null,
           average_power_w: null,
           variability_index: null,
           coasting_share: null,
@@ -48,18 +48,18 @@ export const normalizedPowerMetric: MetricModule = {
       };
     }
 
-    const { normalizedPower, rolling } = computeNormalizedPower(powerSamples, windowSize);
+    const { stabilizedPower, rolling } = computeStabilizedPower(powerSamples, windowSize);
     const averagePower = computeAveragePower(powerSamples) ?? 0;
 
     const coastingCount = powerSamples.filter((sample) => sample.power <= COASTING_THRESHOLD_WATTS).length;
 
     const summary = {
-      normalized_power_w:
-        normalizedPower != null ? toFixedNumber(normalizedPower, 1) : null,
+      stabilized_power_w:
+        stabilizedPower != null ? toFixedNumber(stabilizedPower, 1) : null,
       average_power_w: toFixedNumber(averagePower, 1),
       variability_index:
-        normalizedPower != null && averagePower > 0
-          ? toFixedNumber(normalizedPower / averagePower, 3)
+        stabilizedPower != null && averagePower > 0
+          ? toFixedNumber(stabilizedPower / averagePower, 3)
           : null,
       coasting_share: toFixedNumber(coastingCount / validCount, 4),
       valid_power_samples: validCount,

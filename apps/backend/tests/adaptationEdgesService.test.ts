@@ -69,15 +69,17 @@ describe('computeAdaptationEdges', () => {
     expect(window3?.bestKj?.activityIds.sort()).toEqual(
       [activities[0]!.id, activities[1]!.id, activities[2]!.id].sort(),
     );
-    expect(window3?.bestKj?.totalKj ?? 0).toBeGreaterThan(window3?.bestKj?.totalTss ?? 0);
+    expect(window3?.bestKj?.totalKj ?? 0).toBeGreaterThan(window3?.bestKj?.totalTrainingLoad ?? 0);
 
     const window5 = analysis.windowSummaries.find((entry) => entry.windowDays === 5);
-    expect(window5?.bestTss?.activityIds.sort()).toEqual(activities.map((activity) => activity.id).sort());
-    expect(window5?.bestTss?.totalTss ?? 0).toBeGreaterThan(0);
+    expect(window5?.bestTrainingLoad?.activityIds.sort()).toEqual(
+      activities.map((activity) => activity.id).sort(),
+    );
+    expect(window5?.bestTrainingLoad?.totalTrainingLoad ?? 0).toBeGreaterThan(0);
 
     const window25 = analysis.windowSummaries.find((entry) => entry.windowDays === 25);
     expect(window25?.bestKj).toBeNull();
-    expect(window25?.bestTss).toBeNull();
+    expect(window25?.bestTrainingLoad).toBeNull();
   });
 
   it('returns empty analysis when no activities exist', async () => {

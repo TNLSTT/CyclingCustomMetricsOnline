@@ -84,14 +84,14 @@ export function AdaptationDeepestBlocks({
       ? `${formatNumber(analysis.ftpEstimate, 1)} W`
       : '—';
 
-  const hasData = analysis.windowSummaries.some((entry) => entry.bestKj || entry.bestTss);
+  const hasData = analysis.windowSummaries.some((entry) => entry.bestKj || entry.bestTrainingLoad);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Adaptation edges</CardTitle>
         <CardDescription>
-          Deepest training blocks across 3–25 day windows based on total training stress and total work.
+          Deepest training blocks across 3–25 day windows based on total training load and total work.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -100,7 +100,7 @@ export function AdaptationDeepestBlocks({
         </p>
         {!hasData ? (
           <p className="text-sm text-muted-foreground">
-            Upload rides with power data to calculate TSS and kilojoule totals across multi-day training blocks.
+            Upload rides with power data to calculate training load and kilojoule totals across multi-day training blocks.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -108,7 +108,7 @@ export function AdaptationDeepestBlocks({
               <TableHeader>
                 <TableRow>
                   <TableHead>Window</TableHead>
-                  <TableHead>Highest TSS block</TableHead>
+                  <TableHead>Highest training load block</TableHead>
                   <TableHead>Highest kJ block</TableHead>
                 </TableRow>
               </TableHeader>
@@ -118,12 +118,12 @@ export function AdaptationDeepestBlocks({
                     <TableCell className="font-medium">{summary.windowDays} days</TableCell>
                     <TableCell>
                       <BlockSummaryCell
-                        block={summary.bestTss}
-                        primaryLabel="TSS"
-                        primaryValue={summary.bestTss?.totalTss ?? null}
+                        block={summary.bestTrainingLoad}
+                        primaryLabel="Load score"
+                        primaryValue={summary.bestTrainingLoad?.totalTrainingLoad ?? null}
                         primaryDigits={1}
                         secondaryLabel="kJ"
-                        secondaryValue={summary.bestTss?.totalKj ?? null}
+                        secondaryValue={summary.bestTrainingLoad?.totalKj ?? null}
                         secondaryDigits={0}
                       />
                     </TableCell>
@@ -133,8 +133,8 @@ export function AdaptationDeepestBlocks({
                         primaryLabel="kJ"
                         primaryValue={summary.bestKj?.totalKj ?? null}
                         primaryDigits={0}
-                        secondaryLabel="TSS"
-                        secondaryValue={summary.bestKj?.totalTss ?? null}
+                        secondaryLabel="Load score"
+                        secondaryValue={summary.bestKj?.totalTrainingLoad ?? null}
                         secondaryDigits={1}
                       />
                     </TableCell>

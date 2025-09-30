@@ -3,7 +3,7 @@ import type { MetricSample } from '../metrics/types.js';
 import {
   computeAveragePower,
   computeBestRollingAverage,
-  computeNormalizedPower,
+  computeStabilizedPower,
   extractPowerSamples,
   sumPower,
 } from '../utils/power.js';
@@ -24,7 +24,7 @@ interface ActivityLoadSummary {
   durationSec: number;
   totalKj: number;
   averagePower: number | null;
-  normalizedPower: number | null;
+  stabilizedPower: number | null;
   ftpCandidate: number | null;
 }
 
@@ -32,7 +32,7 @@ type DayKey = string;
 
 interface DayAggregation {
   date: Date;
-  totalTss: number;
+  totalTrainingLoad: number;
   totalKj: number;
   activityIds: string[];
 }
@@ -40,7 +40,7 @@ interface DayAggregation {
 export interface BlockSummary {
   start: string;
   end: string;
-  totalTss: number;
+  totalTrainingLoad: number;
   totalKj: number;
   dayCount: number;
   activityIds: string[];
@@ -48,7 +48,7 @@ export interface BlockSummary {
 
 export interface WindowSummary {
   windowDays: number;
-  bestTss: BlockSummary | null;
+  bestTrainingLoad: BlockSummary | null;
   bestKj: BlockSummary | null;
 }
 
@@ -94,7 +94,7 @@ function computeActivitySummary(
   const normalizedWindowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
   const ftpWindowSize = Math.max(1, Math.round(FTP_WINDOW_SECONDS * sampleRate));
 
-  const { normalizedPower } = computeNormalizedPower(powerSamples, normalizedWindowSize);
+  const { stabilizedPower } = computeStabilizedPower(powerSamples, normalizedWindowSize);
   const averagePower = computeAveragePower(powerSamples);
 
   const bestTwentyMinute = computeBestRollingAverage(powerSamples, ftpWindowSize);
@@ -109,7 +109,7 @@ function computeActivitySummary(
     durationSec: activity.durationSec,
     totalKj,
     averagePower,
-    normalizedPower,
+    stabilizedPower,
     ftpCandidate,
   };
 }
@@ -136,32 +136,32 @@ function computeFtpEstimate(summaries: ActivityLoadSummary[]): number | null {
   return fallback > 0 ? fallback : null;
 }
 
-function computeActivityTss(summary: ActivityLoadSummary, ftpEstimate: number | null): number {
+function computeActivityTrainingLoad(summary: ActivityLoadSummary, ftpEstimate: number | null): number {
   if (!ftpEstimate || ftpEstimate <= 0) {
     return 0;
   }
 
-  const power = summary.normalizedPower ?? summary.averagePower ?? 0;
+  const power = summary.stabilizedPower ?? summary.averagePower ?? 0;
   if (power <= 0) {
     return 0;
   }
 
   const numerator = summary.durationSec * power * (power / ftpEstimate);
-  const tss = numerator / (ftpEstimate * 36);
-  return tss;
+  const trainingLoad = numerator / (ftpEstimate * 36);
+  return trainingLoad;
 }
 
 function mergeDayAggregation(
   map: Map<DayKey, DayAggregation>,
   dayKey: DayKey,
   startOfDay: Date,
-  tss: number,
+  trainingLoad: number,
   totalKj: number,
   activityId: string,
 ) {
   const existing = map.get(dayKey);
   if (existing) {
-    existing.totalTss += tss;
+    existing.totalTrainingLoad += trainingLoad;
     existing.totalKj += totalKj;
     existing.activityIds.push(activityId);
     return;
@@ -169,7 +169,7 @@ function mergeDayAggregation(
 
   map.set(dayKey, {
     date: startOfDay,
-    totalTss: tss,
+    totalTrainingLoad: trainingLoad,
     totalKj,
     activityIds: [activityId],
   });
@@ -191,14 +191,14 @@ function buildTimeline(dayMap: Map<DayKey, DayAggregation>): DayAggregation[] {
     if (entry) {
       timeline.push({
         date: entry.date,
-        totalTss: entry.totalTss,
+        totalTrainingLoad: entry.totalTrainingLoad,
         totalKj: entry.totalKj,
         activityIds: [...entry.activityIds],
       });
     } else {
       timeline.push({
         date: new Date(cursor),
-        totalTss: 0,
+        totalTrainingLoad: 0,
         totalKj: 0,
         activityIds: [],
       });
@@ -216,14 +216,16 @@ function dedupeActivityIds(ids: string[]): string[] {
 function computeBestWindow(
   timeline: DayAggregation[],
   windowDays: number,
-  metric: 'tss' | 'kj',
+  metric: 'trainingLoad' | 'kj',
 ): BlockSummary | null {
   if (timeline.length < windowDays) {
     return null;
   }
 
-  const selectPrimary = (entry: DayAggregation) => (metric === 'tss' ? entry.totalTss : entry.totalKj);
-  const selectSecondary = (entry: DayAggregation) => (metric === 'tss' ? entry.totalKj : entry.totalTss);
+  const selectPrimary = (entry: DayAggregation) =>
+    metric === 'trainingLoad' ? entry.totalTrainingLoad : entry.totalKj;
+  const selectSecondary = (entry: DayAggregation) =>
+    metric === 'trainingLoad' ? entry.totalKj : entry.totalTrainingLoad;
 
   let primarySum = 0;
   let secondarySum = 0;
@@ -259,13 +261,13 @@ function computeBestWindow(
   const start = slice[0]?.date ?? new Date();
   const end = slice[slice.length - 1]?.date ?? start;
 
-  const totalTss = metric === 'tss' ? best.primary : best.secondary;
+  const totalTrainingLoad = metric === 'trainingLoad' ? best.primary : best.secondary;
   const totalKj = metric === 'kj' ? best.primary : best.secondary;
 
   return {
     start: start.toISOString(),
     end: end.toISOString(),
-    totalTss: roundNumber(totalTss, 1),
+    totalTrainingLoad: roundNumber(totalTrainingLoad, 1),
     totalKj: roundNumber(totalKj, 1),
     dayCount: slice.length,
     activityIds,
@@ -328,24 +330,24 @@ export async function computeAdaptationEdges(userId?: string): Promise<Adaptatio
 
   const dayMap = new Map<DayKey, DayAggregation>();
   for (const summary of summaries) {
-    const tss = computeActivityTss(summary, ftpEstimate);
+    const trainingLoad = computeActivityTrainingLoad(summary, ftpEstimate);
     const dayKey = toDateKey(summary.startTime);
     const startOfDay = toUtcStartOfDay(summary.startTime);
-    mergeDayAggregation(dayMap, dayKey, startOfDay, tss, summary.totalKj, summary.activityId);
+    mergeDayAggregation(dayMap, dayKey, startOfDay, trainingLoad, summary.totalKj, summary.activityId);
   }
 
   const timeline = buildTimeline(dayMap);
 
   const windowSummaries: WindowSummary[] = [];
   for (let windowDays = 3; windowDays <= 25; windowDays += 1) {
-    const bestTss = computeBestWindow(timeline, windowDays, 'tss');
+    const bestTrainingLoad = computeBestWindow(timeline, windowDays, 'trainingLoad');
     const bestKj = computeBestWindow(timeline, windowDays, 'kj');
-    if (!bestTss && !bestKj) {
-      windowSummaries.push({ windowDays, bestTss: null, bestKj: null });
+    if (!bestTrainingLoad && !bestKj) {
+      windowSummaries.push({ windowDays, bestTrainingLoad: null, bestKj: null });
     } else {
       windowSummaries.push({
         windowDays,
-        bestTss,
+        bestTrainingLoad,
         bestKj,
       });
     }
