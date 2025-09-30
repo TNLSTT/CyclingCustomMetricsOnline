@@ -91,7 +91,7 @@ export function AdaptationDeepestBlocks({
       <CardHeader>
         <CardTitle>Adaptation edges</CardTitle>
         <CardDescription>
-          Deepest training blocks across 3–25 day windows based on total training stress and total work.
+          Deepest training blocks across 3–25 day windows based on total training load and total work.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -100,7 +100,7 @@ export function AdaptationDeepestBlocks({
         </p>
         {!hasData ? (
           <p className="text-sm text-muted-foreground">
-            Upload rides with power data to calculate TSS and kilojoule totals across multi-day training blocks.
+            Upload rides with power data to calculate training load and kilojoule totals across multi-day training blocks.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -108,7 +108,7 @@ export function AdaptationDeepestBlocks({
               <TableHeader>
                 <TableRow>
                   <TableHead>Window</TableHead>
-                  <TableHead>Highest TSS block</TableHead>
+                  <TableHead>Highest training-load block</TableHead>
                   <TableHead>Highest kJ block</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,7 +119,7 @@ export function AdaptationDeepestBlocks({
                     <TableCell>
                       <BlockSummaryCell
                         block={summary.bestTss}
-                        primaryLabel="TSS"
+                        primaryLabel="Training load"
                         primaryValue={summary.bestTss?.totalTss ?? null}
                         primaryDigits={1}
                         secondaryLabel="kJ"
@@ -133,7 +133,7 @@ export function AdaptationDeepestBlocks({
                         primaryLabel="kJ"
                         primaryValue={summary.bestKj?.totalKj ?? null}
                         primaryDigits={0}
-                        secondaryLabel="TSS"
+                        secondaryLabel="Training load"
                         secondaryValue={summary.bestKj?.totalTss ?? null}
                         secondaryDigits={1}
                       />

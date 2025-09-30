@@ -13,10 +13,10 @@ function toFixedNumber(value: number, fractionDigits: number) {
 export const normalizedPowerMetric: MetricModule = {
   definition: {
     key: 'normalized-power',
-    name: 'Normalized Power',
+    name: 'Adjusted Power',
     version: 1,
     description:
-      'Computes normalized power using 30-second rolling averages alongside pacing diagnostics.',
+      'Computes adjusted power using 30-second rolling averages alongside pacing diagnostics.',
     units: 'W',
     computeConfig: {
       windowSeconds: WINDOW_SECONDS,

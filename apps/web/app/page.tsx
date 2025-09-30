@@ -29,7 +29,7 @@ const onboardingSteps = [
   {
     title: '2. Compute your favourite metrics',
     description:
-      'Trigger the HR-to-Cadence Scaling Ratio, interval efficiency, normalized power, and any custom metrics you add to the registry.',
+      'Trigger the HR-to-Cadence Scaling Ratio, interval efficiency, adjusted power, and any custom metrics you add to the registry.',
   },
   {
     title: '3. Explore insights & share',
@@ -102,7 +102,7 @@ export default function HomePage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <p className="md:max-w-xl">
-            Build a feedback loop between training stress and durability with curated moving averages, fatigue
+            Build a feedback loop between training load and durability with curated moving averages, fatigue
             checks, and cadence insights. Every dataset stays private to your account by default.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
