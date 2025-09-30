@@ -373,7 +373,7 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Early vs. late normalized power</CardTitle>
+          <CardTitle className="text-base font-semibold">Early vs. late adjusted power</CardTitle>
           <CardDescription>Compare FTP-relative output across the opening and closing thirds.</CardDescription>
         </CardHeader>
         <CardContent className="h-[280px]">
@@ -383,10 +383,10 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
               <XAxis dataKey="segment" className="text-xs" />
               <YAxis className="text-xs" tickFormatter={(value) => `${value.toFixed(0)}%`} />
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(1)}%`, 'NP vs FTP']}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, 'AP vs FTP']}
                 contentStyle={{ fontSize: '0.75rem' }}
               />
-              <Bar dataKey="value" name="NP % FTP" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" name="AP % FTP" fill="var(--primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -402,7 +402,7 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Segment</TableHead>
-                <TableHead>NP (% FTP)</TableHead>
+                <TableHead>Adj. power (% FTP)</TableHead>
                 <TableHead>Avg power (W)</TableHead>
                 <TableHead>Avg HR (bpm)</TableHead>
                 <TableHead>HR:Power</TableHead>
@@ -651,7 +651,7 @@ export function DurabilityAnalysisClient({
                   >
                     Duration
                   </TableHead>
-                  <TableHead>NP (W)</TableHead>
+                  <TableHead>Adj. power (W)</TableHead>
                   <TableHead>Avg HR</TableHead>
                   <TableHead
                     className="cursor-pointer"
@@ -705,7 +705,7 @@ export function DurabilityAnalysisClient({
                   <p className="font-semibold text-foreground">{formatDuration(selectedRide.durationSec)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">TSS (est)</p>
+                  <p className="text-muted-foreground">Training load (est)</p>
                   <p className="font-semibold text-foreground">{formatNumber(selectedRide.tss, 0)}</p>
                 </div>
                 <div>
@@ -713,7 +713,7 @@ export function DurabilityAnalysisClient({
                   <p className="font-semibold text-foreground">{formatNumber(selectedRide.totalKj, 1)} kJ</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Normalized power</p>
+                  <p className="text-muted-foreground">Adjusted power</p>
                   <p className="font-semibold text-foreground">
                     {formatNumber(selectedRide.normalizedPowerWatts, 0)} W (
                     {formatNumber(selectedRide.normalizedPowerPctFtp, 1)}% FTP)
@@ -737,7 +737,7 @@ export function DurabilityAnalysisClient({
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
             Scores start at 100 points. We subtract half a point for each percentage point drop in
-            normalized power (as % FTP) from the opening to closing thirds, and we deduct 0.75 points
+            adjusted power (as % FTP) from the opening to closing thirds, and we deduct 0.75 points
             for every percentage point of positive heart-rate drift. To recognize strong finishes, we
             add half a point for every percentage point that the best 20-minute power in the final
             third exceeds FTP. The score is clamped between 0 and 100.

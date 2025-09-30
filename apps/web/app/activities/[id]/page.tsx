@@ -52,7 +52,7 @@ async function getNormalizedPowerMetric(
     return null;
   }
   if (!response.ok) {
-    throw new Error('Failed to load normalized power metric');
+    throw new Error('Failed to load adjusted power metric');
   }
   return (await response.json()) as MetricResultDetail;
 }

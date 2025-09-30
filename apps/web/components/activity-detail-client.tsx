@@ -405,7 +405,7 @@ export function ActivityDetailClient({
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricSummaryCard
-          title="Normalized power"
+          title="Adjusted power"
           value={normalizedPowerDisplay}
           units="W"
           description="30 s rolling-power weighted effort"
@@ -419,7 +419,7 @@ export function ActivityDetailClient({
         <MetricSummaryCard
           title="Variability index"
           value={variabilityDisplay}
-          description="Normalized to average power ratio"
+          description="Adjusted to average power ratio"
         />
         <MetricSummaryCard
           title="Coasting share"
@@ -504,7 +504,7 @@ export function ActivityDetailClient({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Normalized power trend</CardTitle>
+          <CardTitle>Adjusted power trend</CardTitle>
         </CardHeader>
         <CardContent>
           {normalizedSeries.length > 0 ? (

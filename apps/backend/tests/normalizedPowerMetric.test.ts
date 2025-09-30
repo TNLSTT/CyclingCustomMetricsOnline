@@ -15,7 +15,7 @@ const activity: Activity = {
 };
 
 describe('normalizedPowerMetric', () => {
-  it('computes normalized power statistics for variable efforts', async () => {
+  it('computes adjusted power statistics for variable efforts', async () => {
     const samples: MetricSample[] = [];
     for (let t = 0; t < 120; t += 1) {
       let power = 150;
@@ -57,7 +57,7 @@ describe('normalizedPowerMetric', () => {
     expect((result.series as any[]).length).toBe(91);
   });
 
-  it('yields null normalized power when insufficient samples are present', async () => {
+  it('yields null adjusted power when insufficient samples are present', async () => {
     const samples: MetricSample[] = Array.from({ length: 10 }).map((_, index) => ({
       t: index,
       heartRate: null,

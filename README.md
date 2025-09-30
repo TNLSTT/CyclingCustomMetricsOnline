@@ -151,14 +151,14 @@ r each bucket.
 - Summary output includes slope/intercept, linear vs. piecewise R², bucket counts, and fatigue deltas. The series payload exp
 oses each cadence bucket with median/25th/75th percentile heart rate for charting.
 
-#### Normalized Power
+#### Adjusted Power
 
 File: `apps/backend/src/metrics/normalizedPower.ts`
 
-- Uses 30-second rolling averages (sample-rate aware) to compute **normalized power**, **average power**, and the **variabilit
-y index**.
+- Uses 30-second rolling averages (sample-rate aware) to compute **adjusted power**, **average power**, and the **variability
+index**.
 - Tracks coasting prevalence (≤ 5 W), counts of valid/total power samples, and window metadata to aid data-quality audits.
-- Emits a rolling power series so the frontend can visualize normalized power smoothing alongside instantaneous power.
+- Emits a rolling power series so the frontend can visualize adjusted power smoothing alongside instantaneous power.
 
 #### Interval Efficiency
 
@@ -198,13 +198,13 @@ The durability analysis page anchors every calculation to the rider’s FTP valu
 each ride longer than the configured minimum duration (3+ hours by default), the backend splits the
 timeline into thirds and evaluates:
 
-- Normalized power (NP) for the opening and closing thirds, expressed as a percentage of FTP.
+- Adjusted power (AP) for the opening and closing thirds, expressed as a percentage of FTP.
 - Heart-rate drift by comparing the HR:Power ratio between the first and last thirds.
 - Best 20-minute rolling power within the final third, also as % FTP.
 
 Scores start at 100 and are adjusted as follows:
 
-- Subtract **0.5 points** for every percentage-point drop in NP%FTP from early to late thirds.
+- Subtract **0.5 points** for every percentage-point drop in AP%FTP from early to late thirds.
 - Subtract **0.75 points** for every percentage point of positive heart-rate drift.
 - Add **0.5 points** for each percentage point that the best late-ride 20-minute power exceeds FTP.
 
