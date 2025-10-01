@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { LandingUpload } from '../components/landing-upload';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 const features = [
   {
@@ -38,6 +38,27 @@ const onboardingSteps = [
   },
 ];
 
+const workspaceSections = [
+  {
+    title: 'Activities workspace',
+    description: 'Review uploads, check processing status, and open detailed ride summaries.',
+    href: '/activities',
+    action: 'Go to activities',
+  },
+  {
+    title: 'Analytics hub',
+    description: 'Choose the right dashboard to explore trends, moving averages, and durability insights.',
+    href: '/analytics',
+    action: 'Explore analytics',
+  },
+  {
+    title: 'Metric library',
+    description: 'Understand every computed metric and enable new calculations for upcoming rides.',
+    href: '/metrics/registry',
+    action: 'Browse metrics',
+  },
+];
+
 const testimonials = [
   {
     name: 'Coach Maya',
@@ -68,11 +89,26 @@ export default function HomePage() {
               <Link href="/activities">View activities</Link>
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/metrics">Browse metric registry</Link>
+              <Link href="/analytics">Explore analytics hub</Link>
             </Button>
           </div>
         </div>
         <LandingUpload />
+      </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        {workspaceSections.map((section) => (
+          <Card key={section.title} className="flex h-full flex-col justify-between">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">{section.title}</CardTitle>
+              <CardDescription>{section.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto flex justify-end pt-0">
+              <Button asChild size="sm">
+                <Link href={section.href}>{section.action}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </section>
       <section className="grid gap-6 md:grid-cols-3">
         {features.map((feature) => (
