@@ -38,13 +38,16 @@ pnpm install
 
 ### Environment
 
-Copy the example environment and adjust as needed:
+There are two `.env` files you should create locally so the backend, Prisma CLI, and Next.js dev server all receive the same configuration:
 
-```bash
-cp .env.example .env
-```
+| File | Purpose | How to create | Important variables |
+| --- | --- | --- | --- |
+| `.env` | Shared defaults loaded by the backend (`dotenv/config`) and Prisma commands. | `cp .env.example .env` | `DATABASE_URL`, `UPLOAD_DIR`, `AUTH_ENABLED`, `NEXTAUTH_SECRET`, `JWT_SECRET`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD`. |
+| `apps/web/.env.local` | Next.js only reads env vars from inside the app directory. Copy the frontend values from `.env` so the web UI can call the API. | `cp .env.example apps/web/.env.local` and then delete the backend-only keys. | `NEXT_PUBLIC_API_URL`, `NEXT_INTERNAL_API_URL`, `NEXT_PUBLIC_AUTH_ENABLED`, `NEXTAUTH_SECRET` (to keep NextAuth sessions in sync). |
 
-Key variables:
+When you change any variable (for example swapping databases or rotating secrets) update **both** files so the CLI, API, and frontend stay aligned. Re-run the relevant dev servers after editing so the new values are picked up.
+
+Key variables to review before running locally:
 
 - `DATABASE_URL` – PostgreSQL connection string used by Prisma.
 - `UPLOAD_DIR` – directory where raw FIT uploads are preserved.
