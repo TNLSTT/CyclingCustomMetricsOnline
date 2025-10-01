@@ -15,6 +15,7 @@ import type { Profile } from '../types/profile';
 import type { AdaptationEdgesResponse } from '../types/adaptation';
 import type { DurabilityAnalysisResponse } from '../types/durability-analysis';
 import type { DepthAnalysisResponse } from '../types/depth-analysis';
+import type { TrainingFrontiersResponse } from '../types/training-frontiers';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -154,6 +155,16 @@ export async function fetchDurabilityAnalysis(
   const search = params.toString();
   const path = search.length > 0 ? `/durability-analysis?${search}` : '/durability-analysis';
   return apiFetch<DurabilityAnalysisResponse>(path, undefined, authToken);
+}
+
+export async function fetchTrainingFrontiers(windowDays?: number, authToken?: string) {
+  const params = new URLSearchParams();
+  if (windowDays != null) {
+    params.set('windowDays', String(windowDays));
+  }
+  const query = params.toString();
+  const path = query.length > 0 ? `/training-frontiers?${query}` : '/training-frontiers';
+  return apiFetch<TrainingFrontiersResponse>(path, undefined, authToken);
 }
 
 export async function fetchDepthAnalysis(

@@ -24,6 +24,12 @@ const analyticsTools = [
     action: 'Run durability checks',
   },
   {
+    title: 'Training frontiers',
+    description: 'Identify your peak duration-power, durability, efficiency, and repeatability records by recency.',
+    href: '/training-frontiers',
+    action: 'Explore training frontiers',
+  },
+  {
     title: 'Metric library',
     description: 'See the definitions behind each computed metric and discover new analytics to enable.',
     href: '/metrics/registry',
