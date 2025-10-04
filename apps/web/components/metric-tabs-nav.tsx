@@ -7,6 +7,8 @@ import { cn } from '../lib/utils';
 
 const tabs = [
   { href: '/metrics/registry', label: 'Registry' },
+  { href: '/metrics/interval-efficiency', label: 'Interval efficiency' },
+  { href: '/metrics/adaptation', label: 'Adaptation edges' },
   { href: '/metrics/kj-in-interval', label: 'KJ in interval' },
   { href: '/metrics/depth-analysis', label: 'Depth analysis' },
 ];
