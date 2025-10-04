@@ -13,7 +13,11 @@ const VIEWBOX_WIDTH = 800;
 const VIEWBOX_HEIGHT = 600;
 
 function normalizePoints(points: ActivityTrackPoint[]) {
-  if (points.length === 0) {
+  const sanitized = points.filter(
+    (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+  );
+
+  if (sanitized.length === 0) {
     return [] as Array<[number, number]>;
   }
 
@@ -22,7 +26,7 @@ function normalizePoints(points: ActivityTrackPoint[]) {
   let minLon = Number.POSITIVE_INFINITY;
   let maxLon = Number.NEGATIVE_INFINITY;
 
-  for (const point of points) {
+  for (const point of sanitized) {
     minLat = Math.min(minLat, point.latitude);
     maxLat = Math.max(maxLat, point.latitude);
     minLon = Math.min(minLon, point.longitude);
@@ -38,7 +42,7 @@ function normalizePoints(points: ActivityTrackPoint[]) {
   const offsetX = (VIEWBOX_WIDTH - lonRange * scale) / 2;
   const offsetY = (VIEWBOX_HEIGHT - latRange * scale) / 2;
 
-  return points.map((point) => {
+  return sanitized.map((point) => {
     const projectedLon = (point.longitude - minLon) * lonToLatRatio;
     const x = projectedLon * scale + offsetX;
     const y = VIEWBOX_HEIGHT - ((point.latitude - minLat) * scale + offsetY);
