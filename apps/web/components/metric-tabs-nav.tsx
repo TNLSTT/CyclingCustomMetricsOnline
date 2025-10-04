@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 
 import { cn } from '../lib/utils';
+import { useSafePathname } from '../hooks/use-safe-pathname';
 
 const tabs = [
   { href: '/metrics/registry', label: 'Registry' },
@@ -14,7 +14,7 @@ const tabs = [
 ];
 
 export function MetricTabsNav() {
-  const pathname = usePathname();
+  const pathname = useSafePathname();
 
   return (
     <nav className="flex flex-wrap gap-2">
