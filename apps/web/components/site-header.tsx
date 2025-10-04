@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { signIn, signOut, useSession } from 'next-auth/react';
 
 import { env } from '../lib/env';
 import { cn } from '../lib/utils';
+import { useSafePathname } from '../hooks/use-safe-pathname';
 import { Button } from './ui/button';
 
 type NavItem = {
@@ -57,7 +57,7 @@ function AuthControls() {
 }
 
 export function SiteHeader() {
-  const pathname = usePathname();
+  const pathname = useSafePathname();
   const { status } = useSession();
 
   const navItems: NavItem[] =
