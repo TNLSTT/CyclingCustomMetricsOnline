@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { mergeProfileAnalytics, summarizeAdaptationEdges } from './profileAnalyticsService.js';
 import type { MetricSample } from '../metrics/types.js';
 import {
   computeAveragePower,
@@ -273,7 +274,7 @@ function computeBestWindow(
 }
 
 export async function computeAdaptationEdges(userId?: string): Promise<AdaptationEdgesAnalysis> {
-  const activities = await prisma.activity.findMany({
+  const activities = (await prisma.activity.findMany({
     where: userId ? { userId } : undefined,
     orderBy: { startTime: 'asc' },
     select: {
@@ -282,16 +283,20 @@ export async function computeAdaptationEdges(userId?: string): Promise<Adaptatio
       durationSec: true,
       sampleRateHz: true,
     },
-  });
+  })) as ActivityRecord[];
 
   if (activities.length === 0) {
-    return { ftpEstimate: null, windowSummaries: [] };
+    const empty = { ftpEstimate: null, windowSummaries: [] };
+    if (userId) {
+      await mergeProfileAnalytics(userId, { adaptationEdges: summarizeAdaptationEdges(empty) });
+    }
+    return empty;
   }
 
   const samplesByActivity = new Map<string, MetricSample[]>();
   await Promise.all(
-    activities.map(async (activity) => {
-      const rows = await prisma.activitySample.findMany({
+    activities.map(async (activity: ActivityRecord) => {
+      const rows = (await prisma.activitySample.findMany({
         where: { activityId: activity.id },
         orderBy: { t: 'asc' },
         select: {
@@ -303,7 +308,15 @@ export async function computeAdaptationEdges(userId?: string): Promise<Adaptatio
           elevation: true,
           temperature: true,
         },
-      });
+      })) as Array<{
+        t: number;
+        power: number | null;
+        heartRate: number | null;
+        cadence: number | null;
+        speed: number | null;
+        elevation: number | null;
+        temperature: number | null;
+      }>;
 
       const mapped = rows.map((sample) => ({
         t: sample.t,
@@ -319,7 +332,7 @@ export async function computeAdaptationEdges(userId?: string): Promise<Adaptatio
     }),
   );
 
-  const summaries: ActivityLoadSummary[] = activities.map((activity) => {
+  const summaries: ActivityLoadSummary[] = activities.map((activity: ActivityRecord) => {
     const activitySamples = samplesByActivity.get(activity.id) ?? [];
     return computeActivitySummary(activity, activitySamples);
   });
@@ -351,8 +364,14 @@ export async function computeAdaptationEdges(userId?: string): Promise<Adaptatio
     }
   }
 
-  return {
+  const analysis = {
     ftpEstimate: ftpEstimate != null ? roundNumber(ftpEstimate, 1) : null,
     windowSummaries,
   };
+
+  if (userId) {
+    await mergeProfileAnalytics(userId, { adaptationEdges: summarizeAdaptationEdges(analysis) });
+  }
+
+  return analysis;
 }

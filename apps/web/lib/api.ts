@@ -215,6 +215,9 @@ export async function updateProfile(
     websiteUrl: string | null;
     instagramHandle: string | null;
     achievements: string | null;
+    weightKg?: number | null;
+    hrMaxBpm?: number | null;
+    hrRestBpm?: number | null;
   },
   authToken?: string,
 ) {

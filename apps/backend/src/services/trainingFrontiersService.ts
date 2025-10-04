@@ -3,6 +3,7 @@ import type { Activity } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import type { MetricSample } from '../metrics/types.js';
 import { computeRollingAverages, extractPowerSamples } from '../utils/power.js';
+import { mergeProfileAnalytics, summarizeTrainingFrontiers } from './profileAnalyticsService.js';
 
 const MAX_WINDOW_DAYS = 180;
 const DEFAULT_WINDOW_DAYS = 90;
@@ -1011,9 +1012,9 @@ async function loadProfile(userId: string) {
 
   return {
     ftpWatts: profile.ftpWatts ?? null,
-    weightKg: null,
-    hrMaxBpm: null,
-    hrRestBpm: null,
+    weightKg: profile.weightKg ?? null,
+    hrMaxBpm: profile.hrMaxBpm ?? null,
+    hrRestBpm: profile.hrRestBpm ?? null,
   };
 }
 
@@ -1038,7 +1039,7 @@ export async function getTrainingFrontiers(
   const zones = defaultZones();
   const timeInZone = computeTimeInZoneFrontier(activities, profile.ftpWatts, zones);
 
-  return {
+  const response = {
     windowDays: clampedWindow,
     ftpWatts: profile.ftpWatts,
     weightKg: profile.weightKg ?? null,
@@ -1050,4 +1051,8 @@ export async function getTrainingFrontiers(
     repeatability,
     timeInZone,
   };
+
+  await mergeProfileAnalytics(userId, { trainingFrontiers: summarizeTrainingFrontiers(response) });
+
+  return response;
 }

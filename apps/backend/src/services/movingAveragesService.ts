@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { mergeProfileAnalytics, summarizeMovingAverages } from './profileAnalyticsService.js';
 import type { MetricSample } from '../metrics/types.js';
 import {
   computeBestRollingAverage,
@@ -148,7 +149,7 @@ function serializeDay(entry: DayAggregation): MovingAverageDay {
 }
 
 export async function computeMovingAverageInputs(userId?: string): Promise<MovingAverageDay[]> {
-  const activities = await prisma.activity.findMany({
+  const activities = (await prisma.activity.findMany({
     where: userId ? { userId } : undefined,
     orderBy: { startTime: 'asc' },
     select: {
@@ -156,23 +157,26 @@ export async function computeMovingAverageInputs(userId?: string): Promise<Movin
       startTime: true,
       sampleRateHz: true,
     },
-  });
+  })) as ActivityRecord[];
 
   if (activities.length === 0) {
+    if (userId) {
+      await mergeProfileAnalytics(userId, { movingAverages: summarizeMovingAverages([]) });
+    }
     return [];
   }
 
   const samplesByActivity = new Map<string, MetricSample[]>();
   await Promise.all(
-    activities.map(async (activity) => {
-      const rows = await prisma.activitySample.findMany({
+    activities.map(async (activity: ActivityRecord) => {
+      const rows = (await prisma.activitySample.findMany({
         where: { activityId: activity.id },
         orderBy: { t: 'asc' },
         select: {
           t: true,
           power: true,
         },
-      });
+      })) as Array<{ t: number; power: number | null }>;
 
       const mapped = rows.map((row) => ({
         t: row.t,
@@ -195,5 +199,11 @@ export async function computeMovingAverageInputs(userId?: string): Promise<Movin
   }
 
   const timeline = buildTimeline(dayMap);
-  return timeline.map(serializeDay);
+  const days = timeline.map(serializeDay);
+
+  if (userId) {
+    await mergeProfileAnalytics(userId, { movingAverages: summarizeMovingAverages(days) });
+  }
+
+  return days;
 }

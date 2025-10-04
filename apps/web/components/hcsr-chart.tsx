@@ -13,6 +13,7 @@ import {
   YAxis,
   type TooltipProps,
 } from 'recharts';
+import type { ScatterCustomizedShape } from 'recharts/types/cartesian/Scatter';
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 
 import { formatDuration } from '../lib/utils';
@@ -266,7 +267,7 @@ export function HcsrChart({ buckets, slope, intercept }: HcsrChartProps) {
           <Scatter
             dataKey="medianHR"
             name="Median HR"
-            shape={renderScatterPoint}
+            shape={renderScatterPoint as ScatterCustomizedShape}
           />
           {showTrendLine && hasTrendLine ? (
             <Line

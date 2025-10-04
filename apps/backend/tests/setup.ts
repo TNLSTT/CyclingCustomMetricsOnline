@@ -59,11 +59,34 @@ type MetricResultRecord = {
   computedAt: Date;
 };
 
+type ProfileRecord = {
+  id: string;
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  location: string | null;
+  primaryDiscipline: string | null;
+  trainingFocus: string | null;
+  weeklyGoalHours: number | null;
+  ftpWatts: number | null;
+  weightKg: number | null;
+  hrMaxBpm: number | null;
+  hrRestBpm: number | null;
+  websiteUrl: string | null;
+  instagramHandle: string | null;
+  achievements: string | null;
+  analytics: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 interface MockDatabase {
   activities: Map<string, ActivityRecord>;
   samples: Map<string, ActivitySampleRecord[]>;
   metricDefinitions: Map<string, MetricDefinitionRecord>;
   metricResults: Map<string, MetricResultRecord>;
+  profiles: Map<string, ProfileRecord>;
 }
 
 function createMockDatabase(): MockDatabase {
@@ -72,6 +95,7 @@ function createMockDatabase(): MockDatabase {
     samples: new Map(),
     metricDefinitions: new Map(),
     metricResults: new Map(),
+    profiles: new Map(),
   };
 }
 
@@ -95,6 +119,10 @@ function attachMetrics(activity: ActivityRecord) {
   };
 }
 
+function cloneProfile(profile: ProfileRecord) {
+  return { ...profile };
+}
+
 type Delegate = Record<string, (...args: any[]) => any>;
 
 interface PrismaMock {
@@ -103,6 +131,7 @@ interface PrismaMock {
   activitySample: Delegate;
   metricDefinition: Delegate;
   metricResult: Delegate;
+  profile: Delegate;
 }
 
 function createPrismaMock(): PrismaMock {
@@ -367,6 +396,107 @@ function createPrismaMock(): PrismaMock {
         return base;
       },
     },
+    profile: {
+      findUnique: async ({ where, select }: any) => {
+        let profile: ProfileRecord | undefined;
+        if (where?.id) {
+          profile = db.profiles.get(where.id);
+        }
+        if (!profile && where?.userId) {
+          profile = Array.from(db.profiles.values()).find((entry) => entry.userId === where.userId);
+        }
+        if (!profile) {
+          return null;
+        }
+
+        const record = cloneProfile(profile);
+        if (!select) {
+          return record;
+        }
+
+        const selected: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(select)) {
+          if (value) {
+            selected[key] = (record as any)[key];
+          }
+        }
+        return selected;
+      },
+      create: async ({ data }: any) => {
+        const existing = Array.from(db.profiles.values()).find((entry) => entry.userId === data.userId);
+        if (existing) {
+          throw new Error('Profile already exists');
+        }
+        const id = data.id ?? randomUUID();
+        const now = new Date();
+        const record: ProfileRecord = {
+          id,
+          userId: data.userId,
+          displayName: data.displayName ?? null,
+          avatarUrl: data.avatarUrl ?? null,
+          bio: data.bio ?? null,
+          location: data.location ?? null,
+          primaryDiscipline: data.primaryDiscipline ?? null,
+          trainingFocus: data.trainingFocus ?? null,
+          weeklyGoalHours: data.weeklyGoalHours ?? null,
+          ftpWatts: data.ftpWatts ?? null,
+          weightKg: data.weightKg ?? null,
+          hrMaxBpm: data.hrMaxBpm ?? null,
+          hrRestBpm: data.hrRestBpm ?? null,
+          websiteUrl: data.websiteUrl ?? null,
+          instagramHandle: data.instagramHandle ?? null,
+          achievements: data.achievements ?? null,
+          analytics: data.analytics ?? null,
+          createdAt: data.createdAt ?? now,
+          updatedAt: data.updatedAt ?? now,
+        };
+        db.profiles.set(id, record);
+        return cloneProfile(record);
+      },
+      update: async ({ where, data }: any) => {
+        let profileId: string | undefined = where?.id;
+        if (!profileId && where?.userId) {
+          const existing = Array.from(db.profiles.values()).find((entry) => entry.userId === where.userId);
+          profileId = existing?.id;
+        }
+        if (!profileId) {
+          throw new Error('Profile not found');
+        }
+        const existing = db.profiles.get(profileId);
+        if (!existing) {
+          throw new Error('Profile not found');
+        }
+
+        const keys: Array<keyof ProfileRecord> = [
+          'displayName',
+          'avatarUrl',
+          'bio',
+          'location',
+          'primaryDiscipline',
+          'trainingFocus',
+          'weeklyGoalHours',
+          'ftpWatts',
+          'weightKg',
+          'hrMaxBpm',
+          'hrRestBpm',
+          'websiteUrl',
+          'instagramHandle',
+          'achievements',
+          'analytics',
+        ];
+
+        const updated: ProfileRecord = { ...existing };
+        for (const key of keys) {
+          if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            (updated as any)[key] = value ?? null;
+          }
+        }
+        updated.updatedAt = new Date();
+        db.profiles.set(updated.id, updated);
+        return cloneProfile(updated);
+      },
+    },
   };
 
   return mock;
@@ -380,7 +510,7 @@ vi.mock('@prisma/client', () => {
     activitySample = prismaMock.activitySample;
     metricDefinition = prismaMock.metricDefinition;
     metricResult = prismaMock.metricResult;
-    profile = {};
+    profile = prismaMock.profile;
     user = {};
 
     async $transaction<T>(fn: (tx: PrismaMock) => Promise<T>): Promise<T> {
@@ -407,6 +537,7 @@ beforeEach(() => {
   db.samples.clear();
   db.metricDefinitions.clear();
   db.metricResults.clear();
+  db.profiles.clear();
 });
 
 export { db, prismaMock };

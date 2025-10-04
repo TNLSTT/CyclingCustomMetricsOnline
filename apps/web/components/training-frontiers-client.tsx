@@ -178,7 +178,7 @@ function RepeatabilityCard({
           <div className="rounded-md border border-muted p-4">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold">Steepest decay</h4>
-              <Badge variant="destructive">{summary.worst.reps} reps</Badge>
+              <Badge variant="secondary">{summary.worst.reps} reps</Badge>
             </div>
             <p className="text-muted-foreground">
               {formatDate(summary.worst.startTime)} · {formatSeconds(summary.worst.startSec)} start

@@ -8,6 +8,10 @@ declare module '@prisma/client' {
     type InputJsonValue = JsonValue;
     type NullableJsonNullValueInput = null;
     const JsonNull: null;
+    class PrismaClientKnownRequestError extends Error {
+      code: string;
+    }
+    type ActivityWhereInput = Record<string, unknown>;
     type ActivityGetPayload<_T = unknown> = any;
     type ActivityCreateInput = any;
     type ActivitySampleCreateManyInput = any;
@@ -33,9 +37,14 @@ declare module '@prisma/client' {
     primaryDiscipline: string | null;
     trainingFocus: string | null;
     weeklyGoalHours: number | null;
+    ftpWatts: number | null;
+    weightKg: number | null;
+    hrMaxBpm: number | null;
+    hrRestBpm: number | null;
     websiteUrl: string | null;
     instagramHandle: string | null;
     achievements: string | null;
+    analytics: Record<string, unknown> | null;
     createdAt: Date;
     updatedAt: Date;
   };

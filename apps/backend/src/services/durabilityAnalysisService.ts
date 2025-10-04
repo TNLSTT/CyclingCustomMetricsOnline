@@ -1,6 +1,7 @@
 import type { Activity, Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
+import { mergeProfileAnalytics, summarizeDurabilityAnalysis } from './profileAnalyticsService.js';
 import type { MetricSample } from '../metrics/types.js';
 import {
   computeAveragePower,
@@ -8,6 +9,13 @@ import {
   computeNormalizedPower,
   extractPowerSamples,
 } from '../utils/power.js';
+
+type ActivityWhereClause = Prisma.ActivityWhereInput & {
+  startTime?: {
+    gte?: Date;
+    lte?: Date;
+  };
+};
 
 export interface DurabilityFilters {
   minDurationSec: number;
@@ -335,8 +343,8 @@ function computeRideAnalysis(
   };
 }
 
-function buildWhereClause(userId: string, filters: DurabilityFilters): Prisma.ActivityWhereInput {
-  const where: Prisma.ActivityWhereInput = {
+function buildWhereClause(userId: string, filters: DurabilityFilters): ActivityWhereClause {
+  const where: ActivityWhereClause = {
     userId,
     durationSec: { gte: filters.minDurationSec > 0 ? filters.minDurationSec : DEFAULT_MIN_DURATION_SEC },
   };
@@ -395,7 +403,7 @@ export async function getDurabilityAnalysis(
 
   const where = buildWhereClause(userId, appliedFilters);
 
-  const activities = await prisma.activity.findMany({
+  const activities = (await prisma.activity.findMany({
     where,
     orderBy: { startTime: 'desc' },
     include: {
@@ -404,13 +412,13 @@ export async function getDurabilityAnalysis(
         select: { t: true, power: true, heartRate: true },
       },
     },
-  });
+  })) as Array<Activity & { samples: Array<{ t: number; power: number | null; heartRate: number | null }> }>;
 
   const analyses = activities
     .filter((activity) => activity.samples.length > 0)
-    .map((activity) => computeRideAnalysis(activity, ftpWatts));
+    .map((activity): DurabilityRideAnalysis => computeRideAnalysis(activity, ftpWatts));
 
-  const disciplines = Array.from(new Set(analyses.map((ride) => ride.source).filter(Boolean))).sort();
+  const disciplines = Array.from(new Set(analyses.map((ride) => ride.source))).sort();
 
   const filtersResponse: DurabilityFilters = {
     ...appliedFilters,
@@ -418,10 +426,14 @@ export async function getDurabilityAnalysis(
     endDate: appliedFilters.endDate ? new Date(appliedFilters.endDate) : undefined,
   };
 
-  return {
+  const response = {
     ftpWatts,
     filters: filtersResponse,
     rides: analyses,
     disciplines,
   };
+
+  await mergeProfileAnalytics(userId, { durability: summarizeDurabilityAnalysis(response) });
+
+  return response;
 }

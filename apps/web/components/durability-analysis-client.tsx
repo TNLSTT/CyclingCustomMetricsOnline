@@ -241,6 +241,10 @@ function sortRides(rides: DurabilityRideAnalysis[], sort: SortState): Durability
   return sorted;
 }
 
+function toAriaSort(direction: SortDirection): 'ascending' | 'descending' {
+  return direction === 'asc' ? 'ascending' : 'descending';
+}
+
 function SummaryHeader({ ride }: { ride: DurabilityRideAnalysis }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -639,7 +643,7 @@ export function DurabilityAnalysisClient({
                   <TableHead
                     className="cursor-pointer"
                     onClick={() => toggleSort('date')}
-                    aria-sort={sort.key === 'date' ? sort.direction : 'none'}
+                    aria-sort={sort.key === 'date' ? toAriaSort(sort.direction) : 'none'}
                   >
                     Date
                   </TableHead>
@@ -647,7 +651,7 @@ export function DurabilityAnalysisClient({
                   <TableHead
                     className="cursor-pointer"
                     onClick={() => toggleSort('duration')}
-                    aria-sort={sort.key === 'duration' ? sort.direction : 'none'}
+                    aria-sort={sort.key === 'duration' ? toAriaSort(sort.direction) : 'none'}
                   >
                     Duration
                   </TableHead>
@@ -656,7 +660,7 @@ export function DurabilityAnalysisClient({
                   <TableHead
                     className="cursor-pointer"
                     onClick={() => toggleSort('score')}
-                    aria-sort={sort.key === 'score' ? sort.direction : 'none'}
+                    aria-sort={sort.key === 'score' ? toAriaSort(sort.direction) : 'none'}
                   >
                     Durability score
                   </TableHead>
