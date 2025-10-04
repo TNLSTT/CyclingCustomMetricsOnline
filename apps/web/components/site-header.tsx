@@ -22,6 +22,7 @@ const baseNavItems: NavItem[] = [
     label: 'Analytics',
     matchers: ['/activities/trends', '/moving-averages', '/durability-analysis', '/training-frontiers'],
   },
+  { href: '/achievements', label: 'Achievements' },
   {
     href: '/metrics/registry',
     label: 'Metric library',
