@@ -24,6 +24,12 @@ const analyticsTools = [
     action: 'Run durability checks',
   },
   {
+    title: 'Durable TSS explorer',
+    description: 'Plot late-ride training load by calculating TSS only after your chosen kilojoule marker.',
+    href: '/durable-tss',
+    action: 'Inspect durable TSS',
+  },
+  {
     title: 'Training frontiers',
     description: 'Identify your peak duration-power, durability, efficiency, and repeatability records by recency.',
     href: '/training-frontiers',

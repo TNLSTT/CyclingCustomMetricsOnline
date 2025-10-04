@@ -16,6 +16,7 @@ import type { AdaptationEdgesResponse } from '../types/adaptation';
 import type { DurabilityAnalysisResponse } from '../types/durability-analysis';
 import type { DepthAnalysisResponse } from '../types/depth-analysis';
 import type { TrainingFrontiersResponse } from '../types/training-frontiers';
+import type { DurableTssFilters as DurableTssFiltersResponse, DurableTssResponse } from '../types/durable-tss';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -155,6 +156,21 @@ export async function fetchDurabilityAnalysis(
   const search = params.toString();
   const path = search.length > 0 ? `/durability-analysis?${search}` : '/durability-analysis';
   return apiFetch<DurabilityAnalysisResponse>(path, undefined, authToken);
+}
+
+export type DurableTssFilters = DurableTssFiltersResponse;
+
+export async function fetchDurableTss(filters: DurableTssFilters, authToken?: string) {
+  const params = new URLSearchParams({ thresholdKj: String(filters.thresholdKj) });
+  if (filters.startDate) {
+    params.set('startDate', filters.startDate);
+  }
+  if (filters.endDate) {
+    params.set('endDate', filters.endDate);
+  }
+
+  const path = `/durable-tss?${params.toString()}`;
+  return apiFetch<DurableTssResponse>(path, undefined, authToken);
 }
 
 export async function fetchTrainingFrontiers(windowDays?: number, authToken?: string) {
