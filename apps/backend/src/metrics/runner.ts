@@ -1,6 +1,11 @@
 import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
 import { normalizeNullableJson, normalizeSummaryJson } from '../utils/prismaJson.js';
+import {
+  buildMetricSnapshots,
+  mergeProfileAnalytics,
+  type ProfileMetricMetadata,
+} from '../services/profileAnalyticsService.js';
 
 import type { MetricComputationResult, MetricModule, MetricSample } from './types.js';
 import { getMetricModule, metricRegistry } from './registry.js';
@@ -77,9 +82,16 @@ export async function runMetrics(activityId: string, metricKeys?: string[], user
 
   const metricSamples = mapSamples(samples);
   const results: Record<string, MetricComputationResult> = {};
+  const metricMetadata: Record<string, ProfileMetricMetadata> = {};
 
   for (const module of modules) {
     const definition = await ensureDefinition(module);
+    metricMetadata[module.definition.key] = {
+      metricVersion: definition.version,
+      metricName: definition.name,
+      metricDescription: definition.description,
+      metricUnits: definition.units ?? null,
+    };
     try {
       const computation = await module.compute(metricSamples, { activity });
       await prisma.metricResult.upsert({
@@ -110,6 +122,11 @@ export async function runMetrics(activityId: string, metricKeys?: string[], user
         },
       };
     }
+  }
+
+  if (activity.userId) {
+    const snapshots = buildMetricSnapshots(activity, metricMetadata, results);
+    await mergeProfileAnalytics(activity.userId, { metrics: snapshots });
   }
 
   return results;

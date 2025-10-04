@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { mergeProfileAnalytics, summarizeDepthAnalysis } from './profileAnalyticsService.js';
 
 interface DepthAnalysisOptions {
   thresholdKj: number;
@@ -239,7 +240,7 @@ export async function computeDepthAnalysis(
   userId: string | undefined,
   options: DepthAnalysisOptions,
 ): Promise<DepthAnalysisResponse> {
-  const activities = await prisma.activity.findMany({
+  const activities = (await prisma.activity.findMany({
     where: userId ? { userId } : undefined,
     orderBy: { startTime: 'asc' },
     select: {
@@ -248,25 +249,29 @@ export async function computeDepthAnalysis(
       durationSec: true,
       sampleRateHz: true,
     },
-  });
+  })) as ActivityRecord[];
 
   if (activities.length === 0) {
-    return {
+    const empty = {
       thresholdKj: options.thresholdKj,
       minPowerWatts: options.minPowerWatts,
       days: [],
     };
+    if (userId) {
+      await mergeProfileAnalytics(userId, { depthAnalysis: summarizeDepthAnalysis(empty) });
+    }
+    return empty;
   }
 
   const samplesByActivity = new Map<string, SampleRecord[]>();
 
   await Promise.all(
-    activities.map(async (activity) => {
-      const rows = await prisma.activitySample.findMany({
+    activities.map(async (activity: ActivityRecord) => {
+      const rows = (await prisma.activitySample.findMany({
         where: { activityId: activity.id },
         orderBy: { t: 'asc' },
         select: { t: true, power: true },
-      });
+      })) as Array<{ t: number; power: number | null }>;
 
       const mapped = rows.map((row) => ({ t: row.t, power: row.power ?? null }));
       samplesByActivity.set(activity.id, mapped);
@@ -275,7 +280,7 @@ export async function computeDepthAnalysis(
 
   const dayMap = new Map<string, DayAggregation>();
 
-  activities.forEach((activity) => {
+  activities.forEach((activity: ActivityRecord) => {
     const samples = samplesByActivity.get(activity.id) ?? [];
     const summary = computeDepthForActivity(activity, samples, options);
     if (summary.totalJoules <= 0) {
@@ -285,11 +290,15 @@ export async function computeDepthAnalysis(
   });
 
   if (dayMap.size === 0) {
-    return {
+    const empty = {
       thresholdKj: options.thresholdKj,
       minPowerWatts: options.minPowerWatts,
       days: [],
     };
+    if (userId) {
+      await mergeProfileAnalytics(userId, { depthAnalysis: summarizeDepthAnalysis(empty) });
+    }
+    return empty;
   }
 
   const timeline = buildTimeline(dayMap);
@@ -315,9 +324,15 @@ export async function computeDepthAnalysis(
     };
   });
 
-  return {
+  const response = {
     thresholdKj: options.thresholdKj,
     minPowerWatts: options.minPowerWatts,
     days,
   };
+
+  if (userId) {
+    await mergeProfileAnalytics(userId, { depthAnalysis: summarizeDepthAnalysis(response) });
+  }
+
+  return response;
 }

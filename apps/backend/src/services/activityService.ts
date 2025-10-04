@@ -80,7 +80,7 @@ export async function saveActivity(normalized: NormalizedActivity, userId?: stri
     });
 
     return activity;
-  } catch (error) {
+  } catch (error: unknown) {
     if (isDuplicateActivityError(error)) {
       throw error;
     }

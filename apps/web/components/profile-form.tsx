@@ -50,6 +50,9 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
   const [websiteUrl, setWebsiteUrl] = useState(profile?.websiteUrl ?? '');
   const [instagramHandle, setInstagramHandle] = useState(profile?.instagramHandle ?? '');
   const [achievements, setAchievements] = useState(profile?.achievements ?? '');
+  const [weightKg, setWeightKg] = useState<number | null>(profile?.weightKg ?? null);
+  const [hrMaxBpm, setHrMaxBpm] = useState<number | null>(profile?.hrMaxBpm ?? null);
+  const [hrRestBpm, setHrRestBpm] = useState<number | null>(profile?.hrRestBpm ?? null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,6 +61,12 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
   useEffect(() => {
     setAvatarPreviewError(false);
   }, [avatarUrl]);
+
+  useEffect(() => {
+    setWeightKg(profile?.weightKg ?? null);
+    setHrMaxBpm(profile?.hrMaxBpm ?? null);
+    setHrRestBpm(profile?.hrRestBpm ?? null);
+  }, [profile?.weightKg, profile?.hrMaxBpm, profile?.hrRestBpm]);
 
   const previewWeeklyGoalHours = useMemo(() => {
     if (weeklyGoalHours.trim().length === 0) {
@@ -156,6 +165,9 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
         websiteUrl: trimmedWebsiteUrl.length > 0 ? trimmedWebsiteUrl : null,
         instagramHandle: trimmedInstagram.length > 0 ? trimmedInstagram : null,
         achievements: trimmedAchievements.length > 0 ? trimmedAchievements : null,
+        weightKg,
+        hrMaxBpm,
+        hrRestBpm,
       };
 
       const updated = await updateProfile(updates, authToken);
@@ -172,6 +184,9 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
       setWebsiteUrl(updated.websiteUrl ?? '');
       setInstagramHandle(updated.instagramHandle ?? '');
       setAchievements(updated.achievements ?? '');
+      setWeightKg(updated.weightKg ?? null);
+      setHrMaxBpm(updated.hrMaxBpm ?? null);
+      setHrRestBpm(updated.hrRestBpm ?? null);
       setSuccess('Profile updated successfully.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update profile.';

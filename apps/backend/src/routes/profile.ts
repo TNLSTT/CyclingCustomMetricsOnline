@@ -41,6 +41,35 @@ const profileUpdateSchema = z.object({
     })
     .optional()
     .nullable(),
+  weightKg: z
+    .number({ invalid_type_error: 'Weight must be a number.' })
+    .min(0, 'Weight cannot be negative.')
+    .max(250, 'Weight must be 250kg or less.')
+    .refine((value) => Number.isFinite(value), {
+      message: 'Weight must be a number.',
+    })
+    .optional()
+    .nullable(),
+  hrMaxBpm: z
+    .number({ invalid_type_error: 'Max heart rate must be a number.' })
+    .int('Max heart rate must be a whole number of bpm.')
+    .min(0, 'Max heart rate cannot be negative.')
+    .max(250, 'Max heart rate must be 250 bpm or less.')
+    .refine((value) => Number.isFinite(value), {
+      message: 'Max heart rate must be a number.',
+    })
+    .optional()
+    .nullable(),
+  hrRestBpm: z
+    .number({ invalid_type_error: 'Resting heart rate must be a number.' })
+    .int('Resting heart rate must be a whole number of bpm.')
+    .min(0, 'Resting heart rate cannot be negative.')
+    .max(200, 'Resting heart rate must be 200 bpm or less.')
+    .refine((value) => Number.isFinite(value), {
+      message: 'Resting heart rate must be a number.',
+    })
+    .optional()
+    .nullable(),
 });
 
 function toNullable<T>(value: T | undefined | null): T | null | undefined {
@@ -131,6 +160,9 @@ profileRouter.put(
       achievements: toNullable(req.body.achievements),
       weeklyGoalHours: toNullableNumber(req.body.weeklyGoalHours),
       ftpWatts: toNullableNumber(req.body.ftpWatts),
+      weightKg: toNullableNumber(req.body.weightKg),
+      hrMaxBpm: toNullableNumber(req.body.hrMaxBpm),
+      hrRestBpm: toNullableNumber(req.body.hrRestBpm),
     };
 
     const parsed = profileUpdateSchema.safeParse(payload);

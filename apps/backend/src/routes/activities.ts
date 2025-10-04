@@ -152,7 +152,7 @@ activitiesRouter.get(
       return;
     }
 
-    const samples = await prisma.activitySample.findMany({
+    const samples = (await prisma.activitySample.findMany({
       where: {
         activityId: req.params.id,
         latitude: { not: null },
@@ -161,9 +161,9 @@ activitiesRouter.get(
       },
       orderBy: { t: 'asc' },
       select: { latitude: true, longitude: true },
-    });
+    })) as Array<{ latitude: number | null; longitude: number | null }>;
 
-    const trackPoints = samples
+    const trackPoints: TrackPoint[] = samples
       .map((sample) => {
         const { latitude, longitude } = sample;
         const lat =
@@ -216,14 +216,14 @@ activitiesRouter.get(
       return;
     }
 
-    const samples = await prisma.activitySample.findMany({
+    const samples = (await prisma.activitySample.findMany({
       where: {
         activityId: req.params.id,
         ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
       },
       orderBy: { t: 'asc' },
       select: { t: true, power: true },
-    });
+    })) as Array<{ t: number; power: number | null }>;
 
     if (samples.length === 0) {
       res.status(404).json({ error: 'Power stream not available' });
