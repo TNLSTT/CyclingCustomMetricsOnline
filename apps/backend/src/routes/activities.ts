@@ -166,10 +166,24 @@ activitiesRouter.get(
     const trackPoints = samples
       .map((sample) => {
         const { latitude, longitude } = sample;
-        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        const lat =
+          typeof latitude === 'number'
+            ? latitude
+            : latitude != null
+              ? Number(latitude)
+              : null;
+        const lon =
+          typeof longitude === 'number'
+            ? longitude
+            : longitude != null
+              ? Number(longitude)
+              : null;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
           return null;
         }
-        return { latitude, longitude } as TrackPoint;
+
+        return { latitude: lat, longitude: lon } as TrackPoint;
       })
       .filter((point): point is TrackPoint => point !== null);
 
