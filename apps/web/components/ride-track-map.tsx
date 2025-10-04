@@ -30,13 +30,16 @@ function normalizePoints(points: ActivityTrackPoint[]) {
   }
 
   const latRange = Math.max(maxLat - minLat, 1e-6);
-  const lonRange = Math.max(maxLon - minLon, 1e-6);
+  const avgLatRad = ((maxLat + minLat) / 2) * (Math.PI / 180);
+  const lonCompression = Math.max(Math.cos(avgLatRad), 1e-6);
+  const lonRange = Math.max(Math.abs(maxLon - minLon) * lonCompression, 1e-6);
   const scale = Math.min(VIEWBOX_WIDTH / lonRange, VIEWBOX_HEIGHT / latRange);
   const offsetX = (VIEWBOX_WIDTH - lonRange * scale) / 2;
   const offsetY = (VIEWBOX_HEIGHT - latRange * scale) / 2;
 
   return points.map((point) => {
-    const x = (point.longitude - minLon) * scale + offsetX;
+    const normalizedLon = (point.longitude - minLon) * lonCompression;
+    const x = normalizedLon * scale + offsetX;
     const y = VIEWBOX_HEIGHT - ((point.latitude - minLat) * scale + offsetY);
     return [Number.parseFloat(x.toFixed(2)), Number.parseFloat(y.toFixed(2))] as [number, number];
   });
