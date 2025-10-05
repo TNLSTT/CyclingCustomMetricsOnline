@@ -2,7 +2,11 @@ import type { Activity, Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
 import type { MetricSample } from '../metrics/types.js';
-import { computeNormalizedPower, extractPowerSamples } from '../utils/power.js';
+import {
+  computeAveragePower,
+  computeNormalizedPower,
+  extractPowerSamples,
+} from '../utils/power.js';
 
 const NORMALIZED_WINDOW_SECONDS = 30;
 const MIN_THRESHOLD_KJ = 1;
@@ -151,8 +155,19 @@ function computeDurableTssForActivity(
       const powerSamples = extractPowerSamples(segmentSamples);
       const windowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
       const { normalizedPower } = computeNormalizedPower(powerSamples, windowSize);
-      if (normalizedPower != null && Number.isFinite(normalizedPower) && powerSamples.length > 0) {
-        const intensityFactor = normalizedPower / ftpWatts;
+
+      let effectivePower =
+        normalizedPower != null && Number.isFinite(normalizedPower) ? normalizedPower : null;
+
+      if (effectivePower == null && powerSamples.length > 0) {
+        const averagePower = computeAveragePower(powerSamples);
+        if (averagePower != null && Number.isFinite(averagePower)) {
+          effectivePower = averagePower;
+        }
+      }
+
+      if (effectivePower != null && powerSamples.length > 0) {
+        const intensityFactor = effectivePower / ftpWatts;
         const durationHours = (segmentSamples.length * interval) / 3600;
         if (durationHours > 0) {
           const tss = intensityFactor * intensityFactor * durationHours * 100;
@@ -172,6 +187,10 @@ function computeDurableTssForActivity(
     durableTss,
   };
 }
+
+export const __test__ = {
+  computeDurableTssForActivity,
+};
 
 export async function getDurableTss(userId: string, filters: DurableTssFilters): Promise<DurableTssResponse> {
   const profile = await prisma.profile.findUnique({ where: { userId } });
