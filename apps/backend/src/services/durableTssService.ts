@@ -1,4 +1,4 @@
-import type { Activity, Prisma } from '@prisma/client';
+import type { Activity, Prisma, Profile } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
 import type { MetricSample } from '../metrics/types.js';
@@ -33,6 +33,44 @@ export interface DurableTssResponse {
   thresholdKj: number;
   filters: DurableTssFilters;
   rides: DurableTssRide[];
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toPositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
+}
+
+export function resolveFtpWatts(profile: Profile | null): number | null {
+  if (!profile) {
+    return null;
+  }
+
+  const explicitFtp = toPositiveNumber(profile.ftpWatts);
+  if (explicitFtp != null) {
+    return explicitFtp;
+  }
+
+  if (!isObject(profile.analytics)) {
+    return null;
+  }
+
+  const adaptationEdges = profile.analytics['adaptationEdges'];
+  if (!isObject(adaptationEdges)) {
+    return null;
+  }
+
+  const ftpEstimate = toPositiveNumber(adaptationEdges['ftpEstimate']);
+  return ftpEstimate ?? null;
 }
 
 function clampThreshold(value: number): number {
@@ -175,7 +213,7 @@ function computeDurableTssForActivity(
 
 export async function getDurableTss(userId: string, filters: DurableTssFilters): Promise<DurableTssResponse> {
   const profile = await prisma.profile.findUnique({ where: { userId } });
-  const ftpWatts = profile?.ftpWatts ?? null;
+  const ftpWatts = resolveFtpWatts(profile);
 
   const thresholdKj = clampThreshold(filters.thresholdKj);
 
