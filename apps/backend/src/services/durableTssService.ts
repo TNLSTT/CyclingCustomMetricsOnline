@@ -2,11 +2,7 @@ import type { Activity, Prisma } from '@prisma/client';
 
 import { prisma } from '../prisma.js';
 import type { MetricSample } from '../metrics/types.js';
-import {
-  computeAveragePower,
-  computeNormalizedPower,
-  extractPowerSamples,
-} from '../utils/power.js';
+import { computeNormalizedPower, extractPowerSamples } from '../utils/power.js';
 
 const NORMALIZED_WINDOW_SECONDS = 30;
 const MIN_THRESHOLD_KJ = 1;
@@ -153,16 +149,23 @@ function computeDurableTssForActivity(
 
     if (ftpWatts && ftpWatts > 0 && segmentSamples.length > 0) {
       const powerSamples = extractPowerSamples(segmentSamples);
-      const windowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
+      const nominalWindow = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
+      const windowSize =
+        powerSamples.length > 0 ? Math.min(nominalWindow, powerSamples.length) : nominalWindow;
       const { normalizedPower } = computeNormalizedPower(powerSamples, windowSize);
 
       let effectivePower =
         normalizedPower != null && Number.isFinite(normalizedPower) ? normalizedPower : null;
 
-      if (effectivePower == null && powerSamples.length > 0) {
-        const averagePower = computeAveragePower(powerSamples);
-        if (averagePower != null && Number.isFinite(averagePower)) {
-          effectivePower = averagePower;
+      if (effectivePower == null && segmentSamples.length > 0) {
+        const totalJoules = segmentSamples.reduce((sum, sample) => {
+          const powerValue =
+            typeof sample.power === 'number' && Number.isFinite(sample.power) ? sample.power : 0;
+          return sum + powerValue * interval;
+        }, 0);
+        const durationSec = segmentSamples.length * interval;
+        if (durationSec > 0) {
+          effectivePower = totalJoules / durationSec;
         }
       }
 
