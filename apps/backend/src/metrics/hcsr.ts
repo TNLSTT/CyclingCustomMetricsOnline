@@ -37,38 +37,74 @@ function cadenceMidpoint(bucketStart: number): number {
   return bucketStart + BUCKET_SIZE / 2;
 }
 
-function buildBuckets(samples: MetricSample[]) {
+function fallbackIntervalSeconds(sampleRateHz: number | null | undefined) {
+  if (typeof sampleRateHz === 'number' && Number.isFinite(sampleRateHz) && sampleRateHz > 0) {
+    return 1 / sampleRateHz;
+  }
+  return 1;
+}
+
+function resolveSampleDuration(
+  samples: MetricSample[],
+  index: number,
+  defaultInterval: number,
+): number {
+  const current = samples[index]!;
+  const next = index < samples.length - 1 ? samples[index + 1] : null;
+  if (next) {
+    const delta = next.t - current.t;
+    if (Number.isFinite(delta) && delta > 0) {
+      return delta;
+    }
+  }
+
+  if (index > 0) {
+    const previous = samples[index - 1]!;
+    const delta = current.t - previous.t;
+    if (Number.isFinite(delta) && delta > 0) {
+      return delta;
+    }
+  }
+
+  return defaultInterval;
+}
+
+function buildBuckets(samples: MetricSample[], sampleRateHz: number | null | undefined) {
+  const sortedSamples = [...samples].sort((a, b) => a.t - b.t);
   const buckets = new Map<
     number,
     { heartRates: number[]; seconds: number }
   >();
+  const defaultInterval = fallbackIntervalSeconds(sampleRateHz);
   let validSeconds = 0;
 
-  for (const sample of samples) {
+  for (let index = 0; index < sortedSamples.length; index += 1) {
+    const sample = sortedSamples[index]!;
     if (sample.heartRate == null || sample.cadence == null) {
       continue;
     }
     if (sample.cadence < MIN_CADENCE) {
       continue;
     }
-    validSeconds += 1;
+    const durationSeconds = resolveSampleDuration(sortedSamples, index, defaultInterval);
+    validSeconds += durationSeconds;
     const key = bucketKey(sample.cadence);
     const bucket = buckets.get(key) ?? { heartRates: [], seconds: 0 };
     bucket.heartRates.push(sample.heartRate);
-    bucket.seconds += 1;
+    bucket.seconds += durationSeconds;
     buckets.set(key, bucket);
   }
 
   const bucketStats: BucketStats[] = [];
   for (const [key, value] of buckets) {
-    if (value.seconds < REQUIRED_SECONDS_PER_BUCKET) {
+    if (value.seconds + 1e-6 < REQUIRED_SECONDS_PER_BUCKET) {
       continue;
     }
     bucketStats.push({
       cadenceStart: key,
       cadenceEnd: key >= 130 ? 999 : key + BUCKET_SIZE - 1,
       cadenceMid: cadenceMidpoint(key),
-      seconds: value.seconds,
+      seconds: Number.parseFloat(value.seconds.toFixed(3)),
       medianHR: median(value.heartRates),
       hr25: quantile(value.heartRates, 0.25),
       hr75: quantile(value.heartRates, 0.75),
@@ -77,7 +113,7 @@ function buildBuckets(samples: MetricSample[]) {
 
   bucketStats.sort((a, b) => a.cadenceMid - b.cadenceMid);
 
-  return { bucketStats, validSeconds };
+  return { bucketStats, validSeconds: Number.parseFloat(validSeconds.toFixed(3)) };
 }
 
 function toPoints(bucketStats: BucketStats[]): XYPoint[] {
@@ -175,7 +211,10 @@ export const hcsrMetric: MetricModule = {
     },
   },
   compute: (samples, context) => {
-    const { bucketStats, validSeconds } = buildBuckets(samples);
+    const { bucketStats, validSeconds } = buildBuckets(
+      samples,
+      context.activity.sampleRateHz,
+    );
     const points = toPoints(bucketStats);
 
     let slope: number | null = null;

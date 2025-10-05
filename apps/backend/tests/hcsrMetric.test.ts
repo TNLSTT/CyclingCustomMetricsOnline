@@ -54,4 +54,40 @@ describe('hcsrMetric', () => {
     expect(computation.summary.bucket_count).toBe(4);
     expect(Array.isArray(computation.series)).toBe(true);
   });
+
+  it('counts bucket durations using sample spacing when sample rate is below 1 Hz', () => {
+    const cadence = 70;
+    const samples: MetricSample[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      samples.push({
+        t: i * 2,
+        cadence,
+        heartRate: 120,
+        power: null,
+        speed: null,
+        elevation: null,
+      });
+    }
+
+    const activity = {
+      id: 'act_low_rate',
+      userId: null,
+      source: 'garmin-fit',
+      startTime: new Date(),
+      durationSec: 60,
+      sampleRateHz: 0.5,
+      createdAt: new Date(),
+    } as const;
+
+    const computation = hcsrMetric.compute(samples, { activity });
+    if (computation instanceof Promise) {
+      throw new Error('hcsrMetric.compute should resolve synchronously during this test');
+    }
+
+    expect(computation.summary.bucket_count).toBe(1);
+    expect(computation.summary.valid_seconds).toBeCloseTo(60, 3);
+    expect(Array.isArray(computation.series)).toBe(true);
+    const series = computation.series as Array<{ seconds: number }>;
+    expect(series[0]?.seconds).toBeCloseTo(60, 3);
+  });
 });
