@@ -42,6 +42,7 @@ type HcsrSummary = {
   deltaSlope?: number | null;
   validSeconds?: number | null;
   bucketCount?: number | null;
+  piecewiseR2?: number | null;
 };
 
 type HcsrSeries = Array<{
@@ -97,6 +98,7 @@ function parseHcsrSummary(metric: MetricResultDetail | null | undefined): HcsrSu
     validSeconds:
       typeof summary.valid_seconds === 'number' ? summary.valid_seconds : null,
     bucketCount: typeof summary.bucket_count === 'number' ? summary.bucket_count : null,
+    piecewiseR2: typeof summary.piecewise_r2 === 'number' ? summary.piecewise_r2 : null,
   };
 }
 
@@ -204,11 +206,6 @@ export function ActivityDetailClient({
   const intervalSummaries = intervalEfficiency?.intervals ?? [];
   const hasIntervalData = intervalSummaries.length > 0;
 
-  const slopeDisplay = hcsrSummary.slope != null ? hcsrSummary.slope.toFixed(3) : '—';
-  const r2Display = hcsrSummary.r2 != null ? hcsrSummary.r2.toFixed(3) : '—';
-  const nonlinearityDisplay =
-    hcsrSummary.nonlinearity != null ? hcsrSummary.nonlinearity.toFixed(3) : '—';
-
   const formatNumber = (value: number | null | undefined, fractionDigits = 0) => {
     if (value == null || Number.isNaN(value)) {
       return '—';
@@ -222,6 +219,38 @@ export function ActivityDetailClient({
     }
     return trimmed.toString();
   };
+
+  const detailValue = (value: string | null | undefined, suffix?: string) => {
+    if (!value || value === '—') {
+      return 'Not available';
+    }
+    return suffix ? `${value} ${suffix}` : value;
+  };
+
+  const slopeDisplay = hcsrSummary.slope != null ? hcsrSummary.slope.toFixed(3) : '—';
+  const r2Display = hcsrSummary.r2 != null ? hcsrSummary.r2.toFixed(3) : '—';
+  const nonlinearityDisplay =
+    hcsrSummary.nonlinearity != null ? hcsrSummary.nonlinearity.toFixed(3) : '—';
+  const nonlinearityDetail = detailValue(nonlinearityDisplay);
+  const interceptDisplay =
+    hcsrSummary.intercept != null ? hcsrSummary.intercept.toFixed(1) : '—';
+  const deltaSlopeDisplay =
+    hcsrSummary.deltaSlope != null ? hcsrSummary.deltaSlope.toFixed(3) : '—';
+  const piecewiseR2Display =
+    hcsrSummary.piecewiseR2 != null ? hcsrSummary.piecewiseR2.toFixed(3) : '—';
+  const hcsrBucketCountDisplay = formatNumber(hcsrSummary.bucketCount);
+  const hcsrValidSecondsDisplay = formatNumber(hcsrSummary.validSeconds);
+  const hcsrBucketCountDetail = detailValue(hcsrBucketCountDisplay, 'buckets');
+  const hcsrValidSecondsDetail = detailValue(hcsrValidSecondsDisplay, 's');
+  const r2Detail = detailValue(r2Display);
+  const piecewiseR2Detail = detailValue(piecewiseR2Display);
+  const slopeDetail = detailValue(slopeDisplay, 'bpm/rpm');
+  const interceptDetail = detailValue(interceptDisplay, 'bpm');
+  const deltaSlopeDetail = detailValue(deltaSlopeDisplay, 'bpm/rpm');
+  const rideDurationDisplay = formatDuration(activity.durationSec);
+  const rideDurationDetail = detailValue(rideDurationDisplay);
+  const halfSplitPointDisplay = formatDuration(Math.floor(activity.durationSec / 2));
+  const halfSplitPointDetail = detailValue(halfSplitPointDisplay);
 
   const handleRecompute = () => {
     startTransition(async () => {
@@ -260,6 +289,37 @@ export function ActivityDetailClient({
   const rollingWindowsDisplay = formatNumber(normalizedSummary.rollingWindowCount);
   const windowSecondsDisplay = formatNumber(normalizedSummary.windowSeconds);
   const normalizedSeriesPreview = normalizedSeries.slice(-10);
+  const normalizedTotalSamplesDisplay = formatNumber(normalizedSummary.totalSamples);
+  const normalizedWindowSampleDisplay = formatNumber(normalizedSummary.windowSampleCount);
+  const normalizedPowerDetail = detailValue(normalizedPowerDisplay, 'W');
+  const averagePowerDetail = detailValue(averagePowerDisplay, 'W');
+  const normalizedTotalSamplesDetail = detailValue(normalizedTotalSamplesDisplay, 'samples');
+  const validPowerSamplesDetail =
+    validSamplesDisplay === '—'
+      ? 'Not available'
+      : normalizedTotalSamplesDisplay === '—'
+        ? `${validSamplesDisplay} samples with valid watt data`
+        : `${validSamplesDisplay} of ${normalizedTotalSamplesDisplay} samples with valid watt data`;
+  const normalizedWindowSecondsDetail = detailValue(windowSecondsDisplay, 's per window');
+  const normalizedWindowSampleDetail =
+    normalizedWindowSampleDisplay === '—'
+      ? 'Not available'
+      : `${normalizedWindowSampleDisplay} samples per 30 s window`;
+  const normalizedRollingWindowsDetail = detailValue(rollingWindowsDisplay, 'windows');
+  const coastingShareRatio = formatNumber(normalizedSummary.coastingShare, 4);
+  const coastingShareDetail =
+    coastingShareRatio === '—'
+      ? 'Not available'
+      : `${coastingShareDisplay} of valid samples were ≤5 W (${coastingShareRatio} ratio)`;
+  const coastingSharePercentDetail = detailValue(coastingShareDisplay);
+  const variabilityDetail =
+    normalizedPowerDisplay === '—' || averagePowerDisplay === '—' || variabilityDisplay === '—'
+      ? 'Not available'
+      : `${normalizedPowerDisplay} W ÷ ${averagePowerDisplay} W = ${variabilityDisplay}`;
+  const sampleRateDetail =
+    typeof activity.sampleRateHz === 'number' && Number.isFinite(activity.sampleRateHz) && activity.sampleRateHz > 0
+      ? `${Number.parseFloat(activity.sampleRateHz.toFixed(2))} Hz recording`
+      : 'Not recorded';
   const lateWattsPerBpmDisplay = formatNumber(lateAerobicSummary.wattsPerBpm, 3);
   const lateAveragePowerDisplay = formatNumber(lateAerobicSummary.averagePower, 1);
   const lateAverageHrDisplay = formatNumber(lateAerobicSummary.averageHeartRate, 1);
@@ -281,6 +341,28 @@ export function ActivityDetailClient({
     lateAerobicSummary.requestedWindowSeconds != null
       ? formatNumber(lateAerobicSummary.requestedWindowSeconds / 60, 1)
       : '—';
+  const lateValidSamplesDisplay = formatNumber(lateAerobicSummary.validSamples);
+  const lateTotalSamplesDisplay = formatNumber(lateAerobicSummary.totalWindowSamples);
+  const lateWattsPerBpmDetail = detailValue(lateWattsPerBpmDisplay, 'W/bpm');
+  const lateAveragePowerDetail = detailValue(lateAveragePowerDisplay, 'W');
+  const lateAverageHrDetail = detailValue(lateAverageHrDisplay, 'bpm');
+  const lateTotalSamplesDetail = detailValue(lateTotalSamplesDisplay, 'samples');
+  const lateValidSamplesDetail =
+    lateValidSamplesDisplay === '—'
+      ? 'Not available'
+      : lateTotalSamplesDisplay === '—'
+        ? `${lateValidSamplesDisplay} paired samples`
+        : `${lateValidSamplesDisplay} of ${lateTotalSamplesDisplay} samples with both HR & power`;
+  const lateCoverageDetail =
+    lateCoverageDisplay === '—'
+      ? 'Not available'
+      : `${lateCoverageDisplay} window coverage (${lateValidSamplesDetail})`;
+  const lateWindowSecondsDetail = detailValue(lateWindowSecondsDisplay, 's analyzed');
+  const lateRequestedWindowDetail =
+    lateAerobicSummary.requestedWindowSeconds != null
+      ? `${formatNumber(lateAerobicSummary.requestedWindowSeconds)} s requested (${lateRequestedMinutesDisplay === '—' ? '35 min target' : `${lateRequestedMinutesDisplay} min`})`
+      : 'Not available';
+  const lateCoveragePercentDetail = detailValue(lateCoverageDisplay);
 
   useEffect(() => {
     let cancelled = false;
@@ -375,32 +457,132 @@ export function ActivityDetailClient({
           value={slopeDisplay}
           units="bpm/rpm"
           description="Heart rate cost per cadence rpm"
+          insight={{
+            calculation:
+              'Filters cadence ≥20 rpm with valid heart rate, groups the data into 10 rpm buckets that each contain ≥60 s of samples, and fits a Theil–Sen robust regression through the bucket medians to estimate bpm-per-rpm cost.',
+            importance:
+              'Expresses the marginal heart-rate increase for every additional rpm. Rising slopes highlight higher cardiovascular cost or aerobic decoupling, while lower slopes indicate improved efficiency at a given cadence.',
+            usage:
+              'Trend this slope across similar endurance rides to watch aerobic durability. Always verify the fit quality (R²) and data coverage before reacting to a sudden change.',
+            technicalDetails: [
+              { label: 'Current value', value: slopeDetail },
+              { label: 'Buckets analyzed', value: hcsrBucketCountDetail },
+              { label: 'Valid seconds', value: hcsrValidSecondsDetail },
+              { label: 'Regression', value: 'Theil–Sen slope with OLS fallback' },
+              { label: 'Cadence filter', value: 'Samples ≥20 rpm with HR & cadence' },
+              { label: 'Bucket width', value: '10 rpm bins with ≥60 s data' },
+            ],
+            notes: ['Requires ≥2 cadence buckets with valid heart rate & cadence observations.'],
+          }}
         />
         <MetricSummaryCard
           title="R²"
           value={r2Display}
           description="Goodness-of-fit across cadence buckets"
+          insight={{
+            calculation:
+              'Computes the coefficient of determination between the robust regression predictions and the median heart rate observed in each cadence bucket that passed the filtering rules.',
+            importance:
+              'Shows how much of the heart-rate variance is explained solely by cadence. Values near 1.0 indicate a single slope summarises the ride, while lower values signal noise, decoupling, or missing data.',
+            usage:
+              'Use R² as a quality gate before comparing slopes between rides. Review the piecewise baseline and bucket coverage if R² drops unexpectedly.',
+            technicalDetails: [
+              { label: 'Current value', value: r2Detail },
+              { label: 'Piecewise R²', value: piecewiseR2Detail },
+              { label: 'Buckets analyzed', value: hcsrBucketCountDetail },
+              { label: 'Valid seconds', value: hcsrValidSecondsDetail },
+              { label: 'Regression inputs', value: 'Median HR per cadence bucket' },
+            ],
+            notes: ['Piecewise baseline splits the cadence buckets halfway to detect curvature.'],
+          }}
         />
         <MetricSummaryCard
           title="Nonlinearity delta"
           value={nonlinearityDisplay}
           description="Piecewise improvement vs linear fit"
+          insight={{
+            calculation:
+              'Splits the cadence buckets into lower and upper halves, fits ordinary least squares lines to each half, and reports the R² improvement relative to the single global slope.',
+            importance:
+              'Highlights whether the cadence-to-heart-rate relationship bends across the ride. Larger deltas point to different behaviour at low versus high cadence that a single slope cannot explain.',
+            usage:
+              'Investigate sizeable deltas alongside the Δ slope and late-ride metrics; plan gearing or pacing strategies if cadence response shifts across the ride.',
+            technicalDetails: [
+              { label: 'Current value', value: nonlinearityDetail },
+              { label: 'Piecewise R²', value: piecewiseR2Detail },
+              { label: 'Global R²', value: r2Detail },
+              { label: 'Buckets analyzed', value: hcsrBucketCountDetail },
+              { label: 'Valid seconds', value: hcsrValidSecondsDetail },
+            ],
+            notes: ['Requires at least four cadence buckets to evaluate a two-segment fit.'],
+          }}
         />
         <MetricSummaryCard
           title="Intercept"
-          value={hcsrSummary.intercept?.toFixed(1)}
+          value={interceptDisplay}
           units="bpm"
           description="Estimated HR at zero cadence"
+          insight={{
+            calculation:
+              'Uses the same robust cadence-to-heart-rate regression to extrapolate the heart rate at 0 rpm, effectively the intercept of the fitted line.',
+            importance:
+              'Approximates the cardiovascular load independent of cadence. Elevated intercepts can indicate residual fatigue, heat stress, or poor recovery, even if the slope looks normal.',
+            usage:
+              'Compare against known resting or endurance heart rates when reviewing durability rides. Validate that R² and bucket coverage support trusting this extrapolation.',
+            technicalDetails: [
+              { label: 'Current value', value: interceptDetail },
+              { label: 'Slope input', value: slopeDetail },
+              { label: 'Buckets analyzed', value: hcsrBucketCountDetail },
+              { label: 'Valid seconds', value: hcsrValidSecondsDetail },
+              { label: 'Estimation method', value: 'Theil–Sen intercept (OLS fallback)' },
+            ],
+          }}
         />
         <MetricSummaryCard
           title="Half split Δ slope"
-          value={hcsrSummary.deltaSlope?.toFixed(3)}
+          value={deltaSlopeDisplay}
           description="Fatigue signature between ride halves"
+          insight={{
+            calculation:
+              'Fits separate cadence-to-heart-rate slopes for the first and second halves of the ride (time-based) using the same cadence filtering and reports the difference: second-half slope minus first-half slope.',
+            importance:
+              'Quantifies how cadence efficiency drifts as fatigue accumulates. Positive values indicate the slope steepened later, signalling higher heart-rate cost in the back half.',
+            usage:
+              'Assess durability by pairing this value with late-ride efficiency and nonlinearity. Large positive shifts warrant recovery focus or fueling review.',
+            technicalDetails: [
+              { label: 'Current value', value: deltaSlopeDetail },
+              { label: 'Ride duration', value: rideDurationDetail },
+              {
+                label: 'Split point',
+                value:
+                  halfSplitPointDetail === 'Not available'
+                    ? halfSplitPointDetail
+                    : `${halfSplitPointDetail} from ride start`,
+              },
+              { label: 'Cadence filter', value: 'Samples ≥20 rpm with HR & cadence' },
+            ],
+            notes: ['Each half must contain ≥2 valid cadence-heart-rate pairs for a slope to exist.'],
+          }}
         />
         <MetricSummaryCard
           title="Valid seconds"
-          value={hcsrSummary.validSeconds ?? '—'}
+          value={hcsrValidSecondsDisplay === '—' ? '—' : hcsrValidSecondsDisplay}
           description="Data contributing to the analysis"
+          insight={{
+            calculation:
+              'Accumulates the elapsed seconds from samples that met the cadence (≥20 rpm) and heart-rate requirements and were assigned to cadence buckets used in the regression.',
+            importance:
+              'Higher coverage increases confidence that the slope and R² describe the whole ride rather than a handful of points.',
+            usage:
+              'Aim for several hundred seconds of valid data before comparing rides. If this value is low, revisit sensor quality or cadence coverage.',
+            technicalDetails: [
+              { label: 'Current value', value: hcsrValidSecondsDetail },
+              { label: 'Buckets analyzed', value: hcsrBucketCountDetail },
+              { label: 'Ride duration', value: rideDurationDetail },
+              { label: 'Cadence filter', value: 'Samples ≥20 rpm with HR & cadence' },
+            ],
+            notes: ['Seconds outside valid cadence buckets or lacking heart rate are excluded entirely.'],
+          }}
         />
       </div>
       <div className="grid gap-4 md:grid-cols-3">
@@ -409,32 +591,128 @@ export function ActivityDetailClient({
           value={normalizedPowerDisplay}
           units="W"
           description="30 s rolling-power weighted effort"
+          insight={{
+            calculation:
+              'Extracts valid watt samples, builds a 30 second rolling average (window derived from the stream sample rate), raises each window to the 4th power, averages them, and takes the 4th root to produce adjusted power (normalized power).',
+            importance:
+              'Captures the metabolic cost of surges by weighting higher power more heavily than coasting. It correlates better with physiological load than simple average power.',
+            usage:
+              'Compare against thresholds (FTP) or prior rides to judge intensity. Pair with the variability index to understand how spiky the effort was.',
+            technicalDetails: [
+              { label: 'Current value', value: normalizedPowerDetail },
+              { label: 'Window length', value: normalizedWindowSecondsDetail },
+              { label: 'Samples per window', value: normalizedWindowSampleDetail },
+              { label: 'Rolling windows', value: normalizedRollingWindowsDetail },
+              { label: 'Valid power samples', value: validPowerSamplesDetail },
+              { label: 'Recording rate', value: sampleRateDetail },
+            ],
+            notes: ['Rolling windows slide sample-by-sample across the activity for maximum resolution.'],
+          }}
         />
         <MetricSummaryCard
           title="Average power"
           value={averagePowerDisplay}
           units="W"
           description="Arithmetic mean of valid power samples"
+          insight={{
+            calculation:
+              'Computes the arithmetic mean of every finite power sample retained for the adjusted power calculation.',
+            importance:
+              'Provides the baseline load for the ride and acts as the denominator of the variability index.',
+            usage:
+              'Compare the gap between adjusted and average power to determine whether pacing was smooth or punchy. Use it to double-check expected energy expenditure.',
+            technicalDetails: [
+              { label: 'Current value', value: averagePowerDetail },
+              { label: 'Valid samples', value: validPowerSamplesDetail },
+              { label: 'Total recorded', value: normalizedTotalSamplesDetail },
+              { label: 'Recording rate', value: sampleRateDetail },
+            ],
+            notes: ['Invalid, null, or non-numeric watt readings are discarded before computing the mean.'],
+          }}
         />
         <MetricSummaryCard
           title="Variability index"
           value={variabilityDisplay}
           description="Adjusted to average power ratio"
+          insight={{
+            calculation:
+              'Divides adjusted power by average power to show how much the weighted effort exceeded the arithmetic mean.',
+            importance:
+              'Measures pacing smoothness. Values close to 1.0 indicate steady efforts, whereas higher numbers highlight surging or technical terrain.',
+            usage:
+              'Keep endurance rides below ~1.05 to maintain aerobic stability. For races, use the value to assess whether power targets were met given course demands.',
+            technicalDetails: [
+              { label: 'Current value', value: variabilityDetail },
+              { label: 'Adjusted power', value: normalizedPowerDetail },
+              { label: 'Average power', value: averagePowerDetail },
+              { label: 'Rolling windows', value: normalizedRollingWindowsDetail },
+              { label: 'Valid samples', value: validPowerSamplesDetail },
+            ],
+            notes: ['If average power is zero or missing the variability index cannot be computed.'],
+          }}
         />
         <MetricSummaryCard
           title="Coasting share"
           value={coastingShareDisplay}
           description="Time with ≤5 W of power"
+          insight={{
+            calculation:
+              'Counts valid power samples at or below 5 W and divides by the number of samples that carried watt data in the ride.',
+            importance:
+              'Quantifies off-pedalling or freewheeling time. Higher percentages suggest either recovery segments, descents, or potential data gaps.',
+            usage:
+              'Use to review pacing discipline—excess coasting on structured rides may indicate terrain or focus issues. Combine with variability index to explain why adjusted power diverged.',
+            technicalDetails: [
+              { label: 'Current value', value: coastingSharePercentDetail },
+              { label: 'Detail', value: coastingShareDetail },
+              { label: 'Valid samples', value: validPowerSamplesDetail },
+              { label: 'Threshold', value: 'Samples ≤5 W counted as coasting' },
+              { label: 'Recording rate', value: sampleRateDetail },
+            ],
+            notes: ['Consider terrain context—long descents naturally increase the share even in disciplined rides.'],
+          }}
         />
         <MetricSummaryCard
           title="Valid power samples"
           value={validSamplesDisplay}
           description="Samples used in the computation"
+          insight={{
+            calculation:
+              'Counts the number of power readings that were finite numbers after preprocessing the activity stream.',
+            importance:
+              'Indicates how much of the ride provided usable watt data; downstream metrics rely on these samples.',
+            usage:
+              'Investigate sudden drops to ensure the power meter recorded properly. Compare to total samples to spot missing data.',
+            technicalDetails: [
+              { label: 'Current value', value: validPowerSamplesDetail },
+              { label: 'Total recorded', value: normalizedTotalSamplesDetail },
+              { label: 'Rolling windows', value: normalizedRollingWindowsDetail },
+              { label: 'Window length', value: normalizedWindowSecondsDetail },
+              { label: 'Recording rate', value: sampleRateDetail },
+            ],
+            notes: ['Samples without numeric watt data are removed before any rolling-window math executes.'],
+          }}
         />
         <MetricSummaryCard
           title="Rolling windows"
           value={rollingWindowsDisplay}
           description={`30 s windows (sample: ${windowSecondsDisplay}s)`}
+          insight={{
+            calculation:
+              'Reports how many 30 second rolling averages were produced from the valid power samples. Each window advances one sample at a time across the stream.',
+            importance:
+              'More windows mean better temporal coverage for adjusted power. Few windows indicate gaps or extremely short rides.',
+            usage:
+              'Cross-check with valid sample counts—if window count is low, the adjusted power value may be unstable.',
+            technicalDetails: [
+              { label: 'Current value', value: normalizedRollingWindowsDetail },
+              { label: 'Window length', value: normalizedWindowSecondsDetail },
+              { label: 'Samples per window', value: normalizedWindowSampleDetail },
+              { label: 'Valid power samples', value: validPowerSamplesDetail },
+              { label: 'Recording rate', value: sampleRateDetail },
+            ],
+            notes: ['Short rides or sparse data reduce rolling-window coverage and can inflate adjusted power.'],
+          }}
         />
       </div>
       <div className="grid gap-4 md:grid-cols-4">
@@ -443,23 +721,90 @@ export function ActivityDetailClient({
           value={lateWattsPerBpmDisplay}
           units="W/bpm"
           description="Power per beat in the durability window"
+          insight={{
+            calculation:
+              'Focuses on the last 35 minutes of the ride (excluding the final 5 minute buffer), averages paired power and heart-rate samples, and divides power by heart rate to report watts per beat.',
+            importance:
+              'Acts as a durability check—higher ratios show you maintained strong aerobic efficiency late in the ride, while drops can indicate fatigue or cardiac drift.',
+            usage:
+              'Compare late-ride W/HR across long endurance sessions to confirm durability progress. Review coverage and window stats before trusting trends.',
+            technicalDetails: [
+              { label: 'Current value', value: lateWattsPerBpmDetail },
+              { label: 'Average power', value: lateAveragePowerDetail },
+              { label: 'Average heart rate', value: lateAverageHrDetail },
+              { label: 'Valid pairs', value: lateValidSamplesDetail },
+              { label: 'Window coverage', value: lateCoverageDetail },
+              { label: 'Analyzed window', value: lateWindowSecondsDetail },
+              { label: 'Requested window', value: lateRequestedWindowDetail },
+            ],
+            notes: ['Final 5 minutes are excluded to avoid cooldown bias when computing durability.'],
+          }}
         />
         <MetricSummaryCard
           title="Late-ride avg power"
           value={lateAveragePowerDisplay}
           units="W"
           description="Mean power between -35 and -5 minutes"
+          insight={{
+            calculation:
+              'Calculates the arithmetic mean of power samples that survived the late-ride durability filters (paired with heart rate, within the -35 to -5 minute window).',
+            importance:
+              'Provides context for the W/HR ratio and shows how much mechanical work you delivered late in the session.',
+            usage:
+              'Ensure late-ride power is comparable across sessions when evaluating durability. Pair with average heart rate to diagnose decoupling.',
+            technicalDetails: [
+              { label: 'Current value', value: lateAveragePowerDetail },
+              { label: 'Valid pairs', value: lateValidSamplesDetail },
+              { label: 'Window coverage', value: lateCoverageDetail },
+              { label: 'Analyzed window', value: lateWindowSecondsDetail },
+              { label: 'Requested window', value: lateRequestedWindowDetail },
+            ],
+            notes: ['Power samples lacking matching heart rate are removed before averaging.'],
+          }}
         />
         <MetricSummaryCard
           title="Late-ride avg HR"
           value={lateAverageHrDisplay}
           units="bpm"
           description="Mean heart rate between -35 and -5 minutes"
+          insight={{
+            calculation:
+              'Averages heart-rate samples that overlap valid power readings within the durability window defined by the metric.',
+            importance:
+              'Represents cardiovascular strain near the end of the ride. Rising late-ride heart rate for the same power indicates aerobic decoupling.',
+            usage:
+              'Compare to early-ride heart rates and late-ride power to understand fatigue progression. Use it to calibrate fueling and pacing strategies.',
+            technicalDetails: [
+              { label: 'Current value', value: lateAverageHrDetail },
+              { label: 'Valid pairs', value: lateValidSamplesDetail },
+              { label: 'Window coverage', value: lateCoverageDetail },
+              { label: 'Analyzed window', value: lateWindowSecondsDetail },
+              { label: 'Requested window', value: lateRequestedWindowDetail },
+            ],
+            notes: ['Heart-rate drift should be interpreted alongside temperature, hydration, and power output.'],
+          }}
         />
         <MetricSummaryCard
           title="Valid data coverage"
           value={lateCoverageDisplay}
           description="Portion of window with both power & HR"
+          insight={{
+            calculation:
+              'Divides the number of paired power and heart-rate samples by the total samples available in the late-ride window.',
+            importance:
+              'Indicates the reliability of all late-ride metrics—low coverage means durability values may be misleading.',
+            usage:
+              'Aim for ≥80% coverage before drawing conclusions. If coverage is low, inspect sensors or extend the ride for better data.',
+            technicalDetails: [
+              { label: 'Current value', value: lateCoveragePercentDetail },
+              { label: 'Detail', value: lateCoverageDetail },
+              { label: 'Valid pairs', value: lateValidSamplesDetail },
+              { label: 'Total window samples', value: lateTotalSamplesDetail },
+              { label: 'Analyzed window', value: lateWindowSecondsDetail },
+              { label: 'Requested window', value: lateRequestedWindowDetail },
+            ],
+            notes: ['Coverage below 50% suggests the durability window lacks enough overlapping power and heart-rate data.'],
+          }}
         />
       </div>
       <Card>
