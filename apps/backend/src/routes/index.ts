@@ -10,6 +10,7 @@ import { uploadRouter } from './upload.js';
 import { durabilityAnalysisRouter } from './durabilityAnalysis.js';
 import { durableTssRouter } from './durableTss.js';
 import { trainingFrontiersRouter } from './trainingFrontiers.js';
+import { trendsRouter } from './trends.js';
 
 export const apiRouter = express.Router();
 
@@ -21,3 +22,4 @@ apiRouter.use('/profile', requireAuth, profileRouter);
 apiRouter.use('/durability-analysis', requireAuth, durabilityAnalysisRouter);
 apiRouter.use('/durable-tss', requireAuth, durableTssRouter);
 apiRouter.use('/training-frontiers', requireAuth, trainingFrontiersRouter);
+apiRouter.use('/trends', requireAuth, trendsRouter);
