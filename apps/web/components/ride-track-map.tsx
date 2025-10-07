@@ -46,8 +46,12 @@ function sanitizePoints(points: ActivityTrackPoint[]): NormalizedPoint[] {
         return null;
       }
 
-      const latitude = coerceCoordinate(point.latitude);
-      const longitude = coerceCoordinate(point.longitude);
+      const rawLatitude = (point as { lat?: NumericLike; latitude?: NumericLike }).lat ??
+        (point as { lat?: NumericLike; latitude?: NumericLike }).latitude;
+      const rawLongitude = (point as { lon?: NumericLike; longitude?: NumericLike }).lon ??
+        (point as { lon?: NumericLike; longitude?: NumericLike }).longitude;
+      const latitude = coerceCoordinate(rawLatitude);
+      const longitude = coerceCoordinate(rawLongitude);
 
       if (latitude == null || longitude == null) {
         return null;

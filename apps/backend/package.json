@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "seed": "prisma db seed",
-    "backfill:metrics": "tsx src/scripts/backfillMetrics.ts"
+    "backfill:metrics": "tsx src/scripts/backfillMetrics.ts",
+    "backfill:gps": "tsx src/scripts/backfill-enhanced-gps.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.11.0",

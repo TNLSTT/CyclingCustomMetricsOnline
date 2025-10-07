@@ -17,8 +17,9 @@ export interface ActivitySummary {
 export type NumericLike = number | string;
 
 export interface ActivityTrackPoint {
-  latitude: NumericLike;
-  longitude: NumericLike;
+  lat: NumericLike;
+  lon: NumericLike;
+  t?: NumericLike;
 }
 
 export interface ActivityTrackBounds {

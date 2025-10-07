@@ -105,4 +105,61 @@ describe('parseFitFile', () => {
     expect(activity.samples[2].heartRate).toBe(130);
     expect(activity.durationSec).toBe(2);
   });
+
+  it('converts position fields expressed in semicircles', async () => {
+    const base = new Date('2024-05-01T12:00:00Z');
+    const targetLat = 47.6097;
+    const targetLon = -122.3331;
+    const semicircleFactor = 180 / 2 ** 31;
+    const toSemicircles = (degrees: number) => Math.round(degrees / semicircleFactor);
+
+    mockRecords = [
+      {
+        timestamp: base,
+        position_lat: toSemicircles(targetLat),
+        position_long: toSemicircles(targetLon),
+      },
+    ];
+
+    const activity = await parseFitFile(fixturePath);
+
+    expect(activity.samples[0].latitude).toBeCloseTo(targetLat, 6);
+    expect(activity.samples[0].longitude).toBeCloseTo(targetLon, 6);
+  });
+
+  it('falls back to enhanced latitude/longitude expressed in degrees', async () => {
+    const base = new Date('2024-05-01T12:05:00Z');
+    const targetLat = 37.7749;
+    const targetLon = -122.4194;
+
+    mockRecords = [
+      {
+        timestamp: base,
+        enhanced_latitude: targetLat,
+        enhanced_longitude: targetLon,
+      },
+    ];
+
+    const activity = await parseFitFile(fixturePath);
+
+    expect(activity.samples[0].latitude).toBeCloseTo(targetLat, 6);
+    expect(activity.samples[0].longitude).toBeCloseTo(targetLon, 6);
+  });
+
+  it('omits coordinates when either latitude or longitude is missing', async () => {
+    const base = new Date('2024-05-01T12:10:00Z');
+
+    mockRecords = [
+      {
+        timestamp: base,
+        position_lat: 100,
+        enhanced_longitude: -45.123456,
+      },
+    ];
+
+    const activity = await parseFitFile(fixturePath);
+
+    expect(activity.samples[0].latitude).toBeNull();
+    expect(activity.samples[0].longitude).toBeNull();
+  });
 });
