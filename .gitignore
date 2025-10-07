@@ -2,6 +2,7 @@ node_modules
 .pnpm-store
 .env
 .env.local
+/apps/web/tsconfig.tsbuildinfo
 /uploads
 .next
 coverage
