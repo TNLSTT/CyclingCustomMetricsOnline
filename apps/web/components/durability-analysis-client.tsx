@@ -320,8 +320,8 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
               <AreaChart data={timeSeries}>
                 <defs>
                   <linearGradient id="powerGradient" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -345,20 +345,26 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
                   }}
                   labelFormatter={(value) => `${value.toFixed(1)} min`}
                 />
-                <ReferenceArea x1={0} x2={earlyBoundary / 60} fill="var(--muted)" opacity={0.12} />
+                <ReferenceArea
+                  x1={0}
+                  x2={earlyBoundary / 60}
+                  fill="hsl(var(--muted))"
+                  opacity={0.12}
+                />
                 <ReferenceArea
                   x1={lateBoundary / 60}
                   x2={ride.durationSec / 60}
-                  fill="var(--muted)"
+                  fill="hsl(var(--muted))"
                   opacity={0.12}
                 />
                 <Area
                   type="monotone"
                   dataKey="power"
                   yAxisId="power"
-                  stroke="var(--primary)"
+                  stroke="hsl(var(--primary))"
                   fill="url(#powerGradient)"
                   name="Power"
+                  strokeWidth={2}
                 />
                 <Line
                   type="monotone"
@@ -390,7 +396,14 @@ function DurabilityCharts({ ride }: { ride: DurabilityRideAnalysis }) {
                 formatter={(value: number) => [`${value.toFixed(1)}%`, 'AP vs FTP']}
                 contentStyle={{ fontSize: '0.75rem' }}
               />
-              <Bar dataKey="value" name="AP % FTP" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="value"
+                name="AP % FTP"
+                fill="hsl(var(--primary))"
+                radius={[4, 4, 0, 0]}
+                stroke="hsl(var(--primary))"
+                strokeWidth={1}
+              />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -491,7 +504,12 @@ function ScatterAndTrend({ rides }: { rides: DurabilityRideAnalysis[] }) {
                 }}
                 labelFormatter={(_, payload) => payload?.[0]?.payload.label ?? ''}
               />
-              <Scatter data={scatterData} fill="var(--primary)" />
+              <Scatter
+                data={scatterData}
+                fill="hsl(var(--primary))"
+                stroke="hsl(var(--primary))"
+                fillOpacity={0.85}
+              />
             </ScatterChart>
           </ResponsiveContainer>
         </CardContent>
@@ -510,7 +528,15 @@ function ScatterAndTrend({ rides }: { rides: DurabilityRideAnalysis[] }) {
               <YAxis domain={[0, 100]} className="text-xs" />
               <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
               <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-              <Line type="monotone" dataKey="score" name="Durability score" stroke="var(--primary)" />
+              <Line
+                type="monotone"
+                dataKey="score"
+                name="Durability score"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                activeDot={{ r: 6 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
