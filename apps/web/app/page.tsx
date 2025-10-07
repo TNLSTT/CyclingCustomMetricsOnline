@@ -4,6 +4,7 @@ import { Activity, BarChart3, BrainCircuit, Gauge, Layers3, Quote, Route, Sparkl
 
 import { LandingUpload } from '../components/landing-upload';
 import { AchievementSection } from '../components/achievement-section';
+import { MetricSpotlight } from '../components/metric-spotlight';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
@@ -182,6 +183,8 @@ export default function HomePage() {
           </Card>
         ))}
       </section>
+
+      <MetricSpotlight />
 
       <AchievementSection />
 
