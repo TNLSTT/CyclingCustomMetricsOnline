@@ -16,6 +16,7 @@ import type {
   IntervalEfficiencyResponse,
   MetricResultDetail,
   ActivityTrackPoint,
+  ActivityTrackResponse,
 } from '../types/activity';
 import { HcsrChart } from './hcsr-chart';
 import { IntervalEfficiencyChart } from './interval-efficiency-chart';
@@ -195,6 +196,7 @@ export function ActivityDetailClient({
     initialLateAerobicEfficiency,
   );
   const [trackPoints, setTrackPoints] = useState<ActivityTrackPoint[]>([]);
+  const [trackBounds, setTrackBounds] = useState<ActivityTrackResponse['bounds'] | null>(null);
   const [trackError, setTrackError] = useState<string | null>(null);
   const [isTrackLoading, setIsTrackLoading] = useState<boolean>(true);
 
@@ -368,6 +370,7 @@ export function ActivityDetailClient({
     let cancelled = false;
     setIsTrackLoading(true);
     setTrackError(null);
+    setTrackBounds(null);
 
     fetchActivityTrack(activity.id, session?.accessToken)
       .then((response) => {
@@ -376,6 +379,7 @@ export function ActivityDetailClient({
         }
         setTrackPoints(response.points);
         setTrackError(null);
+        setTrackBounds(response.bounds);
       })
       .catch((err) => {
         if (cancelled) {
@@ -388,6 +392,7 @@ export function ActivityDetailClient({
           setTrackError(message);
         }
         setTrackPoints([]);
+        setTrackBounds(null);
       })
       .finally(() => {
         if (!cancelled) {
@@ -443,7 +448,7 @@ export function ActivityDetailClient({
               {trackError}
             </div>
           ) : trackPoints.length > 0 ? (
-            <RideTrackMap points={trackPoints} className="h-full w-full" />
+            <RideTrackMap points={trackPoints} bounds={trackBounds ?? undefined} className="h-full w-full" />
           ) : (
             <div className="flex h-full items-center justify-center px-4 text-sm text-muted-foreground">
               No GPS data available for this ride.
