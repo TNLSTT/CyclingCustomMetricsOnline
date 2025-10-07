@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { IntervalEfficiencyHistoryChart } from '../../../../components/interval-efficiency-history-chart';
+import { PageHeader } from '../../../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/ui/table';
@@ -19,14 +20,11 @@ export default async function IntervalEfficiencyPage() {
     const history = await fetchIntervalEfficiencyHistory(session?.accessToken);
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Interval efficiency</h1>
-          <p className="text-muted-foreground">
-            Compare watts-per-heart-rate efficiency across your rides to spot adaptation or fatigue trends.
-            Use the ride table to jump directly into detailed activity summaries when something stands out.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Interval efficiency"
+          description="Compare watts-per-heart-rate efficiency across your rides to spot adaptation or fatigue trends. Use the ride table to jump directly into detailed activity summaries when something stands out."
+        />
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold">
@@ -99,13 +97,19 @@ export default async function IntervalEfficiencyPage() {
       error instanceof Error ? error.message : 'Unknown error while fetching interval efficiency history.';
 
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load interval efficiency</AlertTitle>
-        <AlertDescription>
-          {message}. Ensure the backend API is running and the metrics have been computed{' '}
-          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm seed</code>.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-10">
+        <PageHeader
+          title="Interval efficiency"
+          description="Compare watts-per-heart-rate efficiency across your rides to spot adaptation or fatigue trends. Use the ride table to jump directly into detailed activity summaries when something stands out."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load interval efficiency</AlertTitle>
+          <AlertDescription>
+            {message}. Ensure the backend API is running and the metrics have been computed{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm seed</code>.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { PageHeader } from '../../components/page-header';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 
@@ -46,13 +47,10 @@ const analyticsTools = [
 export default function AnalyticsHubPage() {
   return (
     <div className="space-y-10">
-      <div className="space-y-3">
-        <h1 className="text-3xl font-bold">Analytics hub</h1>
-        <p className="text-muted-foreground">
-          Pick the right lens for your training data. Start with trends to understand the big picture, then dive
-          deeper into moving averages, durability checks, and the full metric registry when you need specifics.
-        </p>
-      </div>
+      <PageHeader
+        title="Analytics hub"
+        description="Pick the right lens for your training data. Start with trends to understand the big picture, then dive deeper into moving averages, durability checks, and the full metric registry when you need specifics."
+      />
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Recommended workflow</CardTitle>

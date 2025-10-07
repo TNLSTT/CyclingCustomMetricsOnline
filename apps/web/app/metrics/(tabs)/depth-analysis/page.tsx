@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { DepthAnalysisTab } from '../../../../components/depth-analysis-tab';
+import { PageHeader } from '../../../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
 import { getServerAuthSession } from '../../../../lib/auth';
 import { env } from '../../../../lib/env';
@@ -53,14 +54,11 @@ export default async function DepthAnalysisPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Depth analysis</h1>
-        <p className="text-muted-foreground">
-          Quantify how much work you complete late in the ride after surpassing a configurable energy
-          threshold and minimum power requirement.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="Depth analysis"
+        description="Quantify how much work you complete late in the ride after surpassing a configurable energy threshold and minimum power requirement."
+      />
 
       {initialError && !initialData ? (
         <Alert variant="destructive">

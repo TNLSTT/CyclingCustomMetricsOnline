@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { TrainingFrontiersClient } from '../../components/training-frontiers-client';
+import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
@@ -39,13 +40,11 @@ export default async function TrainingFrontiersPage() {
 
   if (!initialData) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Training frontiers</h1>
-          <p className="text-muted-foreground">
-            Surface your strongest efforts across durability, efficiency, repeatability, and time-in-zone streaks.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Training frontiers"
+          description="Surface your strongest efforts across durability, efficiency, repeatability, and time-in-zone streaks."
+        />
         <Alert variant="destructive">
           <AlertTitle>Unable to load training frontier data</AlertTitle>
           <AlertDescription>
@@ -57,13 +56,11 @@ export default async function TrainingFrontiersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Training frontiers</h1>
-        <p className="text-muted-foreground">
-          Explore the outer edges of your recent performances and find the next breakthroughs to chase.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="Training frontiers"
+        description="Explore the outer edges of your recent performances and find the next breakthroughs to chase."
+      />
       <TrainingFrontiersClient initialData={initialData} defaultWindowDays={DEFAULT_WINDOW_DAYS} />
     </div>
   );

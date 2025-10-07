@@ -5,6 +5,7 @@ import { env } from '../../lib/env';
 import type { PaginatedActivities } from '../../types/activity';
 import { ActivityQuickStats } from '../../components/activity-quick-stats';
 import { ActivityTable } from '../../components/activity-table';
+import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 
 async function getActivities(token?: string): Promise<PaginatedActivities> {
@@ -43,14 +44,11 @@ export default async function ActivitiesPage() {
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Activities</h1>
-          <p className="text-muted-foreground">
-            Recently uploaded FIT rides with computed metric summaries. Use the filters below to hone in on
-            pending rides, specific metrics, or sources.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Activities"
+          description="Recently uploaded FIT rides with computed metric summaries. Use the filters below to hone in on pending rides, specific metrics, or sources."
+        />
         <ActivityQuickStats
           totalActivities={totalActivities}
           totalDurationHours={totalDurationSec / 3600}
@@ -65,13 +63,19 @@ export default async function ActivitiesPage() {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error while fetching activities.';
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load activities</AlertTitle>
-        <AlertDescription>
-          {message}. Ensure the backend API is running and the database has been migrated{' '}
-          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm db:push</code>.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-10">
+        <PageHeader
+          title="Activities"
+          description="Recently uploaded FIT rides with computed metric summaries. Use the filters below to hone in on pending rides, specific metrics, or sources."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load activities</AlertTitle>
+          <AlertDescription>
+            {message}. Ensure the backend API is running and the database has been migrated{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm db:push</code>.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 }

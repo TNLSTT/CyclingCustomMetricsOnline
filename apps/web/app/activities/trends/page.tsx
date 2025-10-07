@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { ActivityTrendsChart } from '../../../components/activity-trends-chart';
+import { PageHeader } from '../../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../../components/ui/alert';
 import { getServerAuthSession } from '../../../lib/auth';
 import { env } from '../../../lib/env';
@@ -41,23 +42,27 @@ export default async function ActivityTrendsPage({
     const initialMetricId = typeof metricParam === 'string' ? metricParam : undefined;
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Activity trends</h1>
-          <p className="text-muted-foreground">
-            Explore how your ride durations and computed metrics evolve across every activity you upload.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Activity trends"
+          description="Explore how your ride durations and computed metrics evolve across every activity you upload."
+        />
         <ActivityTrendsChart activities={activities} initialMetricId={initialMetricId} />
       </div>
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error while fetching trends.';
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load activity trends</AlertTitle>
-        <AlertDescription>{message}</AlertDescription>
-      </Alert>
+      <div className="space-y-10">
+        <PageHeader
+          title="Activity trends"
+          description="Explore how your ride durations and computed metrics evolve across every activity you upload."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load activity trends</AlertTitle>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 }

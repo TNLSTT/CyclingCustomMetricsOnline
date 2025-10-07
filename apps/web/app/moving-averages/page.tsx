@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { MovingAverageCharts } from '../../components/moving-average-charts';
+import { PageHeader } from '../../components/page-header';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
 import type { MovingAveragesResponse } from '../../types/moving-averages';
@@ -34,14 +35,11 @@ export default async function MovingAveragesPage() {
   const data = await getMovingAverageData(session?.accessToken);
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Moving averages</h1>
-        <p className="text-muted-foreground">
-          Visualize how your training load and power durability evolve across multi-month rolling
-          windows.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="Moving averages"
+        description="Visualize how your training load and power durability evolve across multi-month rolling windows."
+      />
 
       {data.days.length === 0 ? (
         <Alert>

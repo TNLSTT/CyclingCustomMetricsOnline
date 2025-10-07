@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { ProfileForm } from '../../components/profile-form';
+import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
@@ -34,13 +35,11 @@ export default async function ProfilePage() {
 
   if (!env.authEnabled) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Profile</h1>
-          <p className="text-muted-foreground">
-            Profiles are disabled while authentication is turned off.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Profile"
+          description="Profiles are disabled while authentication is turned off."
+        />
         <Alert>
           <AlertTitle>Authentication disabled</AlertTitle>
           <AlertDescription>
@@ -57,14 +56,11 @@ export default async function ProfilePage() {
     const profile = await loadProfile(session?.accessToken);
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Profile</h1>
-          <p className="text-muted-foreground">
-            Craft a rich training identity with goals, highlights, and social links that appear alongside
-            your activities and analytics.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Profile"
+          description="Craft a rich training identity with goals, highlights, and social links that appear alongside your activities and analytics."
+        />
         <ProfileForm profile={profile} authToken={session?.accessToken} />
       </div>
     );
