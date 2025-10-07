@@ -51,7 +51,7 @@ function mapActivity(activity: ActivityWithMetrics) {
   };
 }
 
-type TrackPoint = { latitude: number; longitude: number };
+type TrackPoint = { latitude: number; longitude: number; t: number | null };
 
 function simplifyTrack(points: TrackPoint[], maxPoints = 1000): TrackPoint[] {
   if (points.length <= maxPoints) {
@@ -160,8 +160,8 @@ activitiesRouter.get(
         ...(req.user?.id ? { activity: { userId: req.user.id } } : {}),
       },
       orderBy: { t: 'asc' },
-      select: { latitude: true, longitude: true },
-    })) as Array<{ latitude: number | null; longitude: number | null }>;
+      select: { latitude: true, longitude: true, t: true },
+    })) as Array<{ latitude: number | null; longitude: number | null; t: number | null }>;
 
     const trackPoints: TrackPoint[] = samples
       .map((sample) => {
@@ -178,12 +178,18 @@ activitiesRouter.get(
             : longitude != null
               ? Number(longitude)
               : null;
+        const t =
+          typeof sample.t === 'number'
+            ? sample.t
+            : sample.t != null
+              ? Number(sample.t)
+              : null;
 
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
           return null;
         }
 
-        return { latitude: lat, longitude: lon } as TrackPoint;
+        return { latitude: lat, longitude: lon, t } satisfies TrackPoint;
       })
       .filter((point): point is TrackPoint => point !== null);
 
@@ -197,7 +203,19 @@ activitiesRouter.get(
     const longitudes = simplified.map((point) => point.longitude);
 
     res.json({
-      points: simplified,
+      points: simplified.map((point) => {
+        const base = { lat: point.latitude, lon: point.longitude } as {
+          lat: number;
+          lon: number;
+          t?: number;
+        };
+
+        if (point.t != null && Number.isFinite(point.t)) {
+          base.t = Number(point.t);
+        }
+
+        return base;
+      }),
       bounds: {
         minLatitude: Math.min(...latitudes),
         maxLatitude: Math.max(...latitudes),

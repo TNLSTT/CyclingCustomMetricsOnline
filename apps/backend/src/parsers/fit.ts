@@ -16,6 +16,8 @@ type FitRecord = {
   temperature?: number;
   position_lat?: number;
   position_long?: number;
+  enhanced_latitude?: number;
+  enhanced_longitude?: number;
 };
 
 type FitParserCallbackData = { records?: FitRecord[] };
@@ -123,12 +125,38 @@ function sanitizeCoordinate(value: unknown, min: number, max: number): number | 
 }
 
 const SEMICIRCLES_TO_DEGREES = 180 / 2 ** 31;
+const SEMICIRCLE_THRESHOLD = 3.2e4;
 
-function convertSemicirclesToDegrees(value: unknown): number | null {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
+function convertCoordinateValue(value: unknown): number | null {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
     return null;
   }
-  return value * SEMICIRCLES_TO_DEGREES;
+
+  const needsConversion = Math.abs(value) > SEMICIRCLE_THRESHOLD;
+  const degrees = needsConversion ? value * SEMICIRCLES_TO_DEGREES : value;
+
+  return Number.isFinite(degrees) ? degrees : null;
+}
+
+function normalizeCoordinatePair(
+  latitudeSource: unknown,
+  longitudeSource: unknown,
+): { latitude: number | null; longitude: number | null } {
+  const latitudeDegrees = convertCoordinateValue(latitudeSource);
+  const longitudeDegrees = convertCoordinateValue(longitudeSource);
+
+  if (latitudeDegrees == null || longitudeDegrees == null) {
+    return { latitude: null, longitude: null };
+  }
+
+  const latitude = sanitizeCoordinate(latitudeDegrees, -90, 90);
+  const longitude = sanitizeCoordinate(longitudeDegrees, -180, 180);
+
+  if (latitude == null || longitude == null) {
+    return { latitude: null, longitude: null };
+  }
+
+  return { latitude, longitude };
 }
 
 function parseTimestamp(value: FitRecord['timestamp']): number | null {
@@ -209,15 +237,9 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
       9000,
     );
     const temperature = sanitizeFloat(record.temperature, -60, 90);
-    const latitude = sanitizeCoordinate(
-      convertSemicirclesToDegrees(record.position_lat),
-      -90,
-      90,
-    );
-    const longitude = sanitizeCoordinate(
-      convertSemicirclesToDegrees(record.position_long),
-      -180,
-      180,
+    const { latitude, longitude } = normalizeCoordinatePair(
+      record.position_lat ?? record.enhanced_latitude,
+      record.position_long ?? record.enhanced_longitude,
     );
 
     samplesBySecond.set(t, {

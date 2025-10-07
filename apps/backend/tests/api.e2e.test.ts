@@ -19,8 +19,12 @@ function buildNormalizedActivity(): NormalizedActivity {
     { cadence: 120, heartRate: 150 },
   ];
   let t = 0;
+  const baseLatitude = 47.6062;
+  const baseLongitude = -122.3321;
   for (const bucket of cadenceBuckets) {
     for (let i = 0; i < 60; i += 1) {
+      const latitude = Number.parseFloat((baseLatitude + t * 0.00005).toFixed(6));
+      const longitude = Number.parseFloat((baseLongitude - t * 0.00005).toFixed(6));
       samples.push({
         t,
         cadence: bucket.cadence,
@@ -29,6 +33,8 @@ function buildNormalizedActivity(): NormalizedActivity {
         speed: null,
         elevation: null,
         temperature: 25 + bucket.cadence / 100,
+        latitude,
+        longitude,
       });
       t += 1;
     }
@@ -141,6 +147,19 @@ describe('Activities API flow', () => {
       .set('Authorization', `Bearer ${authToken}`);
     expect(adaptationResponse.status).toBe(200);
     expect(Array.isArray(adaptationResponse.body.windowSummaries)).toBe(true);
+
+    const trackResponse = await request(app)
+      .get(`/api/activities/${activityId}/track`)
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(trackResponse.status).toBe(200);
+    expect(Array.isArray(trackResponse.body.points)).toBe(true);
+    expect(trackResponse.body.points.length).toBeGreaterThan(0);
+    expect(trackResponse.body.points[0]).toHaveProperty('lat');
+    expect(trackResponse.body.points[0]).toHaveProperty('lon');
+    const { bounds } = trackResponse.body;
+    expect(bounds).toBeDefined();
+    expect(bounds.minLatitude).toBeLessThanOrEqual(bounds.maxLatitude);
+    expect(bounds.minLongitude).toBeLessThanOrEqual(bounds.maxLongitude);
 
     expect(unlinkSpy).toHaveBeenCalledTimes(2);
   });
