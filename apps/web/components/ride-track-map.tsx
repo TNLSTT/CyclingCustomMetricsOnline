@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 
 import type { ActivityTrackPoint } from '../types/activity';
+import { cn } from '../lib/utils';
 
 interface RideTrackMapProps {
   points: ActivityTrackPoint[];
@@ -12,26 +13,74 @@ interface RideTrackMapProps {
 const VIEWBOX_WIDTH = 800;
 const VIEWBOX_HEIGHT = 600;
 
+function coerceCoordinate(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return null;
+    }
+    const parsed = Number.parseFloat(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (typeof value === 'bigint') {
+    const coerced = Number(value);
+    return Number.isFinite(coerced) ? coerced : null;
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    if (typeof (value as { toNumber?: () => unknown }).toNumber === 'function') {
+      try {
+        return coerceCoordinate((value as { toNumber: () => unknown }).toNumber());
+      } catch {
+        return null;
+      }
+    }
+
+    if (typeof (value as { valueOf?: () => unknown }).valueOf === 'function') {
+      try {
+        const primitive = (value as { valueOf: () => unknown }).valueOf();
+        if (primitive !== value) {
+          return coerceCoordinate(primitive);
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    if (typeof (value as { toString?: () => string }).toString === 'function') {
+      try {
+        return coerceCoordinate((value as { toString: () => string }).toString());
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
 function normalizePoints(points: ActivityTrackPoint[]) {
   const sanitized: Array<{ latitude: number; longitude: number }> = points
     .map((point) => {
-      const latitude = typeof point.latitude === 'number'
-        ? point.latitude
-        : point.latitude != null
-          ? Number.parseFloat(String(point.latitude))
-          : null;
-      const longitude = typeof point.longitude === 'number'
-        ? point.longitude
-        : point.longitude != null
-          ? Number.parseFloat(String(point.longitude))
-          : null;
+      if (!point || typeof point !== 'object') {
+        return null;
+      }
+
+      const latitude = coerceCoordinate((point as ActivityTrackPoint).latitude);
+      const longitude = coerceCoordinate((point as ActivityTrackPoint).longitude);
+
+      if (latitude == null || longitude == null) {
+        return null;
+      }
 
       return { latitude, longitude };
     })
-    .filter(
-      (point): point is { latitude: number; longitude: number } =>
-        Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
-    );
+    .filter((point): point is { latitude: number; longitude: number } => point !== null);
 
   if (sanitized.length === 0) {
     return [] as Array<[number, number]>;
@@ -68,22 +117,23 @@ function normalizePoints(points: ActivityTrackPoint[]) {
 
 export function RideTrackMap({ points, className }: RideTrackMapProps) {
   const normalized = useMemo(() => normalizePoints(points), [points]);
+  const hasRoute = normalized.length > 0;
 
   const pathData = useMemo(() => {
-    if (normalized.length === 0) {
+    if (!hasRoute) {
       return '';
     }
     const commands = normalized.map(([x, y], index) => {
       return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
     });
     return commands.join(' ');
-  }, [normalized]);
+  }, [hasRoute, normalized]);
 
-  const start = normalized[0];
-  const finish = normalized[normalized.length - 1];
+  const start = hasRoute ? normalized[0] : null;
+  const finish = hasRoute ? normalized[normalized.length - 1] : null;
 
   return (
-    <div className={className}>
+    <div className={cn('relative', className)}>
       <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} className="h-full w-full">
         <defs>
           <linearGradient id="ride-map-bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -115,7 +165,7 @@ export function RideTrackMap({ points, className }: RideTrackMapProps) {
             return <line key={`h-${index}`} x1={0} y1={y} x2={VIEWBOX_WIDTH} y2={y} />;
           })}
         </g>
-        {pathData ? (
+        {hasRoute && pathData ? (
           <g filter="url(#ride-map-glow)">
             <path d={pathData} fill="none" stroke="url(#ride-map-path)" strokeWidth="10" strokeLinecap="round" />
           </g>
@@ -123,6 +173,11 @@ export function RideTrackMap({ points, className }: RideTrackMapProps) {
         {start ? <circle cx={start[0]} cy={start[1]} r={14} fill="#f97316" opacity="0.9" /> : null}
         {finish ? <circle cx={finish[0]} cy={finish[1]} r={14} fill="#38bdf8" opacity="0.9" /> : null}
       </svg>
+      {!hasRoute ? (
+        <div className="absolute inset-0 flex items-center justify-center px-4 text-sm text-slate-200">
+          No valid GPS samples were found for this ride.
+        </div>
+      ) : null}
     </div>
   );
 }
