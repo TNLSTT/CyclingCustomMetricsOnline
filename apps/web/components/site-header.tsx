@@ -8,7 +8,10 @@ import { signIn, signOut, useSession } from 'next-auth/react';
 import { env } from '../lib/env';
 import { cn } from '../lib/utils';
 import { useSafePathname } from '../hooks/use-safe-pathname';
+import { motion } from 'framer-motion';
 import { Button } from './ui/button';
+
+const navInteraction = { duration: 0.18, ease: [0.33, 1, 0.68, 1] as [number, number, number, number] };
 
 type NavChild = {
   href: string;
@@ -129,10 +132,17 @@ export function SiteHeader() {
                   )}
                   aria-current={isActive ? 'page' : undefined}
                 >
-                  {item.label}
-                  {isActive ? (
-                    <span className="absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-primary" aria-hidden />
-                  ) : null}
+                  <motion.span
+                    className="relative flex items-center gap-1"
+                    whileHover={{ transform: 'translateY(-2px)' }}
+                    whileFocus={{ transform: 'translateY(-2px)' }}
+                    transition={navInteraction}
+                  >
+                    {item.label}
+                    {isActive ? (
+                      <span className="absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-primary" aria-hidden />
+                    ) : null}
+                  </motion.span>
                 </Link>
               );
             }
@@ -153,7 +163,7 @@ export function SiteHeader() {
                   }
                 }}
               >
-                <button
+                <motion.button
                   type="button"
                   className={cn(
                     'relative flex items-center gap-1 rounded-md px-3 py-2 transition-colors',
@@ -172,13 +182,17 @@ export function SiteHeader() {
                       closeDropdown();
                     }
                   }}
+                  whileHover={{ transform: 'translateY(-2px)' }}
+                  whileFocus={{ transform: 'translateY(-2px)' }}
+                  whileTap={{ transform: 'translateY(0)' }}
+                  transition={navInteraction}
                 >
                   {item.label}
                   <ChevronDown className="h-3 w-3" aria-hidden />
                   {isActive ? (
                     <span className="absolute inset-x-1 bottom-1 h-0.5 rounded-full bg-primary" aria-hidden />
                   ) : null}
-                </button>
+                </motion.button>
                 <div
                   className={cn(
                     'absolute right-0 z-20 mt-2 w-56 rounded-lg border bg-background p-2 text-sm shadow-lg transition-all duration-150',
@@ -194,7 +208,13 @@ export function SiteHeader() {
                       onClick={closeDropdown}
                       role="menuitem"
                     >
-                      {child.label}
+                      <motion.span
+                        className="inline-flex items-center"
+                        whileHover={{ transform: 'translateX(4px)' }}
+                        transition={navInteraction}
+                      >
+                        {child.label}
+                      </motion.span>
                     </Link>
                   ))}
                 </div>
