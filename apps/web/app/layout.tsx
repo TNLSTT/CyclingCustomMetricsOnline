@@ -5,6 +5,8 @@ import './globals.css';
 import { AuthProvider } from '../components/auth-provider';
 import { SiteHeader } from '../components/site-header';
 import { PageTransition } from '../components/page-transition';
+import { CommandPalette } from '../components/command-palette';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -34,6 +36,8 @@ export default function RootLayout({
               Built for cyclists who love data-driven training.
             </footer>
           </div>
+          <CommandPalette />
+          <Toaster position="top-right" />
         </AuthProvider>
       </body>
     </html>

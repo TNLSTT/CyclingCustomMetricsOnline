@@ -18,6 +18,7 @@ import type {
   ActivityTrackPoint,
   ActivityTrackBounds,
 } from '../types/activity';
+import { ActivitySummaryHero } from './activity-summary-hero';
 import { HcsrChart } from './hcsr-chart';
 import { IntervalEfficiencyChart } from './interval-efficiency-chart';
 import { MetricSummaryCard } from './metric-summary-card';
@@ -26,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { RideTrackMap } from './ride-track-map';
+import { RideComparisonOverlay } from './ride-comparison-overlay';
 
 interface ActivityDetailClientProps {
   activity: ActivitySummary;
@@ -199,6 +201,7 @@ export function ActivityDetailClient({
   const [trackBounds, setTrackBounds] = useState<ActivityTrackBounds | null>(null);
   const [trackError, setTrackError] = useState<string | null>(null);
   const [isTrackLoading, setIsTrackLoading] = useState<boolean>(true);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
   const createTrendHref = (metricId: string) =>
     `/activities/trends?metric=${encodeURIComponent(metricId)}`;
@@ -409,25 +412,40 @@ export function ActivityDetailClient({
   }, [activity.id, session?.accessToken]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <ActivitySummaryHero
+        activity={activity}
+        normalizedPower={normalizedSummary.normalizedPower ?? null}
+        averagePower={normalizedSummary.averagePower ?? activity.averagePower ?? null}
+        variabilityIndex={normalizedSummary.variabilityIndex ?? null}
+        coastingShare={normalizedSummary.coastingShare ?? null}
+        lateWattsPerBpm={lateAerobicSummary.wattsPerBpm ?? null}
+        intervalSummaries={intervalSummaries}
+        onOpenComparison={() => setIsComparisonOpen(true)}
+        trackPoints={trackPoints}
+        trackBounds={trackBounds}
+        isTrackLoading={isTrackLoading}
+        trackError={trackError}
+      />
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Ride on {new Date(activity.startTime).toLocaleString()}</h1>
-          <p className="text-muted-foreground">
-            {activity.source} · duration {formatDuration(activity.durationSec)}
+        <div className="max-w-xl text-sm text-muted-foreground">
+          <p>
+            Latest metrics computed at{' '}
+            {metric?.computedAt ? new Date(metric.computedAt).toLocaleString() : '—'}. Re-run the pipeline to
+            refresh derived insights when new algorithms ship.
           </p>
         </div>
-        <Button onClick={handleRecompute} disabled={isPending} variant="secondary">
+        <Button onClick={handleRecompute} disabled={isPending} variant="secondary" className="gap-2">
           {isPending ? (
-            <span className="flex items-center space-x-2">
+            <>
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Recomputing…</span>
-            </span>
+            </>
           ) : (
-            <span className="flex items-center space-x-2">
+            <>
               <RefreshCw className="h-4 w-4" />
               <span>Recompute metrics</span>
-            </span>
+            </>
           )}
         </Button>
       </div>
@@ -439,9 +457,9 @@ export function ActivityDetailClient({
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>Ride map</CardTitle>
+          <CardTitle>Ride map (detailed)</CardTitle>
         </CardHeader>
-        <CardContent className="h-[400px] p-0">
+        <CardContent className="h-[420px] rounded-lg border border-dashed p-0">
           {isTrackLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Loading ride map…
@@ -964,6 +982,13 @@ export function ActivityDetailClient({
           </CardContent>
         </Card>
       ) : null}
+      <RideComparisonOverlay
+        open={isComparisonOpen}
+        onOpenChange={setIsComparisonOpen}
+        accessToken={session?.accessToken}
+        baseActivity={activity}
+        baseIntervals={intervalSummaries}
+      />
     </div>
   );
 }

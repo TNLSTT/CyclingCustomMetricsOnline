@@ -12,6 +12,12 @@ export interface ActivitySummary {
   sampleRateHz: number | null;
   createdAt: string;
   metrics: MetricSummary[];
+  name?: string | null;
+  distanceMeters?: number | null;
+  totalElevationGain?: number | null;
+  averagePower?: number | null;
+  averageHeartRate?: number | null;
+  averageCadence?: number | null;
 }
 
 export type NumericLike = number | string;
