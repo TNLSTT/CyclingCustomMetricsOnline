@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
+import { TriangleAlert } from 'lucide-react';
 
 import { fetchTrainingFrontiers } from '../lib/api';
 import { formatDuration } from '../lib/utils';
@@ -19,6 +20,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Skeleton } from './ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import {
   Table,
   TableBody,
@@ -38,6 +40,12 @@ interface TrainingFrontiersClientProps {
 interface RepeatabilitySummary {
   best: RepeatabilitySequence | null;
   worst: RepeatabilitySequence | null;
+}
+
+interface MissingDataNotice {
+  key: string;
+  title: string;
+  description: string;
 }
 
 function useTrainingFrontiers(windowDays: number, initial?: TrainingFrontiersResponse) {
@@ -483,6 +491,38 @@ export function TrainingFrontiersClient({
   const { data, isLoading, error } = useTrainingFrontiers(windowDays, initialData);
 
   const response = data ?? initialData;
+  const missingDataNotices: MissingDataNotice[] = useMemo(
+    () => {
+      if (!response) {
+        return [];
+      }
+
+      const notices: MissingDataNotice[] = [];
+      const ftpMissing = response.ftpWatts == null || response.ftpWatts <= 0;
+      if (ftpMissing) {
+        notices.push({
+          key: 'ftp',
+          title: 'Add your FTP to unlock more insights',
+          description:
+            'We need your FTP to calculate % FTP values, durability deltas, repeatability sequences, and time-in-zone streaks. Update your profile with your current FTP to fill in those metrics.',
+        });
+      }
+
+      const hrMaxMissing = response.hrMaxBpm == null || response.hrMaxBpm <= 0;
+      const hrRestMissing = response.hrRestBpm == null || response.hrRestBpm <= 0;
+      if (hrMaxMissing || hrRestMissing) {
+        notices.push({
+          key: 'heart-rate',
+          title: 'Complete your heart-rate profile',
+          description:
+            'Set both your resting and max heart rate so we can compute watts-per-bpm and heart-rate-reserve efficiency rankings in the efficiency frontier.',
+        });
+      }
+
+      return notices;
+    },
+    [response],
+  );
 
   return (
     <div className="space-y-6">
@@ -520,6 +560,17 @@ export function TrainingFrontiersClient({
         <Skeleton className="h-48 w-full" />
       ) : (
         <div className="space-y-6">
+          {missingDataNotices.length > 0 ? (
+            <div className="space-y-2">
+              {missingDataNotices.map((notice) => (
+                <Alert key={notice.key}>
+                  <TriangleAlert className="h-4 w-4" />
+                  <AlertTitle>{notice.title}</AlertTitle>
+                  <AlertDescription>{notice.description}</AlertDescription>
+                </Alert>
+              ))}
+            </div>
+          ) : null}
           <div className="grid gap-6 lg:grid-cols-2">
             <DurationPowerCard points={response.durationPower.durations} convexHull={response.durationPower.convexHull} />
             <KjFrontierCard points={response.durationPower.kjFrontier} peak={response.durationPower.peakKjPerHour} />
