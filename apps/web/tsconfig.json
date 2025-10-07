@@ -14,6 +14,9 @@
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": ".",
+    "paths": {
+      "framer-motion": ["./lib/framer-motion"]
+    },
     "types": ["node", "next-auth"],
     "plugins": [
       {

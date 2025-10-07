@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 import { Activity, BarChart3, BrainCircuit, Gauge, Layers3, Quote, Route, Sparkles, Timer } from 'lucide-react';
 
@@ -7,6 +10,8 @@ import { AchievementSection } from '../components/achievement-section';
 import { MetricSpotlight } from '../components/metric-spotlight';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+
+const baseEase = [0.22, 0.61, 0.36, 1] as [number, number, number, number];
 
 const heroHighlights = [
   {
@@ -129,58 +134,91 @@ export default function HomePage() {
               </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              {heroHighlights.map((item) => (
-                <div key={item.value} className="rounded-2xl border border-primary/20 bg-background/80 p-4">
+              {heroHighlights.map((item, index) => (
+                <motion.div
+                  key={item.value}
+                  className="rounded-2xl border border-primary/20 bg-background/80 p-4"
+                  initial={{ opacity: 0, transform: 'translateY(12px)' }}
+                  animate={{ opacity: 1, transform: 'translateY(0)' }}
+                  whileHover={{ transform: 'translateY(-4px)', boxShadow: '0 20px 45px rgba(59,130,246,0.08)' }}
+                  whileFocus={{ transform: 'translateY(-4px)', boxShadow: '0 20px 45px rgba(59,130,246,0.12)' }}
+                  transition={{ duration: 0.4, delay: index * 0.08, ease: baseEase }}
+                  tabIndex={0}
+                >
                   <p className="text-sm font-semibold text-primary">{item.value}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{item.label}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
-          <Card className="relative overflow-hidden border-primary/30 bg-background/80 shadow-xl shadow-primary/20">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">Upload your ride</CardTitle>
-              <CardDescription>Start the pipeline and watch metrics populate automatically.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LandingUpload />
-            </CardContent>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, transform: 'translateY(16px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            transition={{ duration: 0.45, delay: 0.12, ease: baseEase }}
+            whileHover={{ transform: 'translateY(-6px)' }}
+          >
+            <Card className="relative overflow-hidden border-primary/30 bg-background/80 shadow-xl shadow-primary/20">
+              <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
+              <CardHeader>
+                <CardTitle className="text-base font-semibold">Upload your ride</CardTitle>
+                <CardDescription>Start the pipeline and watch metrics populate automatically.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LandingUpload />
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        {experienceHighlights.map((feature) => (
-          <Card key={feature.title} className="relative overflow-hidden border-primary/10 bg-background/70">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-primary to-primary/80" />
-            <CardHeader className="space-y-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <feature.icon className="h-5 w-5" aria-hidden />
-              </div>
-              <CardTitle className="text-lg font-semibold">{feature.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">{feature.description}</CardContent>
-          </Card>
+        {experienceHighlights.map((feature, index) => (
+          <motion.div
+            key={feature.title}
+            initial={{ opacity: 0, transform: 'translateY(18px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            whileHover={{ transform: 'translateY(-6px)', boxShadow: '0 24px 45px rgba(59,130,246,0.08)' }}
+            transition={{ duration: 0.45, delay: index * 0.1, ease: baseEase }}
+          >
+            <Card className="relative overflow-hidden border-primary/10 bg-background/70">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-primary to-primary/80" />
+              <CardHeader className="space-y-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <feature.icon className="h-5 w-5" aria-hidden />
+                </div>
+                <CardTitle className="text-lg font-semibold">{feature.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">{feature.description}</CardContent>
+            </Card>
+          </motion.div>
         ))}
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
-        {workspaceSections.map((section) => (
-          <Card key={section.title} className="group h-full border-primary/15 bg-background/80 transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-foreground">{section.title}</CardTitle>
-              <CardDescription>{section.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="mt-auto flex justify-between pt-0 text-sm font-medium">
-              <Button asChild size="sm" className="group">
-                <Link href={section.href} className="inline-flex items-center gap-2">
-                  {section.action}
-                  <Route className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+        {workspaceSections.map((section, index) => (
+          <motion.div
+            key={section.title}
+            className="group h-full"
+            initial={{ opacity: 0, transform: 'translateY(20px)' }}
+            animate={{ opacity: 1, transform: 'translateY(0)' }}
+            whileHover={{ transform: 'translateY(-8px)', boxShadow: '0 28px 50px rgba(59,130,246,0.12)' }}
+            transition={{ duration: 0.45, delay: index * 0.08, ease: baseEase }}
+          >
+            <Card className="h-full border-primary/15 bg-background/80 transition-colors group-hover:border-primary/40">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-foreground">{section.title}</CardTitle>
+                <CardDescription>{section.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto flex justify-between pt-0 text-sm font-medium">
+                <Button asChild size="sm" className="group">
+                  <Link href={section.href} className="inline-flex items-center gap-2">
+                    {section.action}
+                    <Route className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </section>
 
@@ -204,10 +242,14 @@ export default function HomePage() {
           </Button>
         </div>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {workflow.map((step) => (
-            <div
+          {workflow.map((step, index) => (
+            <motion.div
               key={step.title}
               className="relative flex flex-col gap-4 rounded-2xl border border-primary/15 bg-background/90 p-6 shadow-sm shadow-primary/10"
+              initial={{ opacity: 0, transform: 'translateY(22px)' }}
+              animate={{ opacity: 1, transform: 'translateY(0)' }}
+              whileHover={{ transform: 'translateY(-6px)', borderColor: 'rgba(59,130,246,0.35)' }}
+              transition={{ duration: 0.45, delay: index * 0.1, ease: baseEase }}
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -216,7 +258,7 @@ export default function HomePage() {
                 <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
               </div>
               <p className="text-sm text-muted-foreground">{step.description}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
