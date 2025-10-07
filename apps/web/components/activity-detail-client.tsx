@@ -200,6 +200,9 @@ export function ActivityDetailClient({
   const [trackError, setTrackError] = useState<string | null>(null);
   const [isTrackLoading, setIsTrackLoading] = useState<boolean>(true);
 
+  const createTrendHref = (metricId: string) =>
+    `/activities/trends?metric=${encodeURIComponent(metricId)}`;
+
   const hcsrSummary = parseHcsrSummary(metric ?? null);
   const hcsrSeries = parseHcsrSeries(metric ?? null);
   const normalizedSummary = parseNormalizedPowerSummary(normalizedMetric ?? null);
@@ -479,6 +482,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Requires ≥2 cadence buckets with valid heart rate & cadence observations.'],
           }}
+          trendHref={createTrendHref('hcsr.slope_bpm_per_rpm')}
+          trendLabel="View slope trend"
         />
         <MetricSummaryCard
           title="R²"
@@ -500,6 +505,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Piecewise baseline splits the cadence buckets halfway to detect curvature.'],
           }}
+          trendHref={createTrendHref('hcsr.r2')}
+          trendLabel="View R² trend"
         />
         <MetricSummaryCard
           title="Nonlinearity delta"
@@ -521,6 +528,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Requires at least four cadence buckets to evaluate a two-segment fit.'],
           }}
+          trendHref={createTrendHref('hcsr.nonlinearity_delta')}
+          trendLabel="View nonlinearity trend"
         />
         <MetricSummaryCard
           title="Intercept"
@@ -542,6 +551,8 @@ export function ActivityDetailClient({
               { label: 'Estimation method', value: 'Theil–Sen intercept (OLS fallback)' },
             ],
           }}
+          trendHref={createTrendHref('hcsr.intercept_bpm')}
+          trendLabel="View intercept trend"
         />
         <MetricSummaryCard
           title="Half split Δ slope"
@@ -568,6 +579,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Each half must contain ≥2 valid cadence-heart-rate pairs for a slope to exist.'],
           }}
+          trendHref={createTrendHref('hcsr.half_split_delta_slope')}
+          trendLabel="View Δ slope trend"
         />
         <MetricSummaryCard
           title="Valid seconds"
@@ -588,6 +601,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Seconds outside valid cadence buckets or lacking heart rate are excluded entirely.'],
           }}
+          trendHref={createTrendHref('hcsr.valid_seconds')}
+          trendLabel="View valid seconds trend"
         />
       </div>
       <div className="grid gap-4 md:grid-cols-3">
@@ -613,6 +628,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Rolling windows slide sample-by-sample across the activity for maximum resolution.'],
           }}
+          trendHref={createTrendHref('normalized-power.normalized_power_w')}
+          trendLabel="View adjusted power trend"
         />
         <MetricSummaryCard
           title="Average power"
@@ -634,6 +651,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Invalid, null, or non-numeric watt readings are discarded before computing the mean.'],
           }}
+          trendHref={createTrendHref('normalized-power.average_power_w')}
+          trendLabel="View average power trend"
         />
         <MetricSummaryCard
           title="Variability index"
@@ -655,6 +674,8 @@ export function ActivityDetailClient({
             ],
             notes: ['If average power is zero or missing the variability index cannot be computed.'],
           }}
+          trendHref={createTrendHref('normalized-power.variability_index')}
+          trendLabel="View variability trend"
         />
         <MetricSummaryCard
           title="Coasting share"
@@ -676,6 +697,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Consider terrain context—long descents naturally increase the share even in disciplined rides.'],
           }}
+          trendHref={createTrendHref('normalized-power.coasting_share')}
+          trendLabel="View coasting trend"
         />
         <MetricSummaryCard
           title="Valid power samples"
@@ -697,6 +720,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Samples without numeric watt data are removed before any rolling-window math executes.'],
           }}
+          trendHref={createTrendHref('normalized-power.valid_power_samples')}
+          trendLabel="View valid sample trend"
         />
         <MetricSummaryCard
           title="Rolling windows"
@@ -718,6 +743,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Short rides or sparse data reduce rolling-window coverage and can inflate adjusted power.'],
           }}
+          trendHref={createTrendHref('normalized-power.rolling_window_count')}
+          trendLabel="View rolling windows trend"
         />
       </div>
       <div className="grid gap-4 md:grid-cols-4">
@@ -744,6 +771,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Final 5 minutes are excluded to avoid cooldown bias when computing durability.'],
           }}
+          trendHref={createTrendHref('late-aerobic-efficiency.watts_per_bpm')}
+          trendLabel="View late-ride W/HR trend"
         />
         <MetricSummaryCard
           title="Late-ride avg power"
@@ -766,6 +795,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Power samples lacking matching heart rate are removed before averaging.'],
           }}
+          trendHref={createTrendHref('late-aerobic-efficiency.average_power_w')}
+          trendLabel="View late-ride power trend"
         />
         <MetricSummaryCard
           title="Late-ride avg HR"
@@ -788,6 +819,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Heart-rate drift should be interpreted alongside temperature, hydration, and power output.'],
           }}
+          trendHref={createTrendHref('late-aerobic-efficiency.average_heart_rate_bpm')}
+          trendLabel="View late-ride HR trend"
         />
         <MetricSummaryCard
           title="Valid data coverage"
@@ -810,6 +843,8 @@ export function ActivityDetailClient({
             ],
             notes: ['Coverage below 50% suggests the durability window lacks enough overlapping power and heart-rate data.'],
           }}
+          trendHref={createTrendHref('late-aerobic-efficiency.valid_sample_coverage_ratio')}
+          trendLabel="View durability coverage trend"
         />
       </div>
       <Card>

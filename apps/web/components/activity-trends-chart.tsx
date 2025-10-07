@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 
 interface ActivityTrendsChartProps {
   activities: ActivitySummary[];
+  initialMetricId?: string;
 }
 
 interface SeriesPoint {
@@ -67,7 +68,7 @@ function guessUnit(field: string) {
   return undefined;
 }
 
-export function ActivityTrendsChart({ activities }: ActivityTrendsChartProps) {
+export function ActivityTrendsChart({ activities, initialMetricId }: ActivityTrendsChartProps) {
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat('en', {
@@ -140,6 +141,35 @@ export function ActivityTrendsChart({ activities }: ActivityTrendsChartProps) {
           });
           map.set(seriesId, entry);
         }
+
+        if (metric.key === 'late-aerobic-efficiency') {
+          const validSampleCount = summary.valid_sample_count;
+          const totalSampleCount = summary.total_window_sample_count;
+          if (
+            typeof validSampleCount === 'number' &&
+            typeof totalSampleCount === 'number' &&
+            Number.isFinite(validSampleCount) &&
+            Number.isFinite(totalSampleCount) &&
+            totalSampleCount > 0
+          ) {
+            const coverageRatio = validSampleCount / totalSampleCount;
+            const seriesId = `${metric.key}.valid_sample_coverage_ratio`;
+            const existing = map.get(seriesId);
+            const entry: MetricSeries = existing ?? {
+              id: seriesId,
+              label: `${humanize(metric.key)} – Valid data coverage`,
+              unit: '%',
+              points: [],
+            };
+            entry.points.push({
+              activityId: activity.id,
+              timestamp,
+              value: Number((coverageRatio * 100).toFixed(1)),
+              activityLabel,
+            });
+            map.set(seriesId, entry);
+          }
+        }
       }
     }
 
@@ -168,19 +198,52 @@ export function ActivityTrendsChart({ activities }: ActivityTrendsChartProps) {
     count: series.points.length,
   }));
 
+  const appliedInitialMetricRef = useRef<string | undefined>(undefined);
+
   const [selectedMetricId, setSelectedMetricId] = useState<string | undefined>(() => {
+    if (initialMetricId && metricOptions.some((option) => option.id === initialMetricId)) {
+      appliedInitialMetricRef.current = initialMetricId;
+      return initialMetricId;
+    }
     return metricOptions.at(0)?.id;
   });
 
   useEffect(() => {
-    if (metricOptions.length === 0) {
-      setSelectedMetricId(undefined);
+    if (!initialMetricId) {
+      appliedInitialMetricRef.current = undefined;
       return;
     }
-    if (!selectedMetricId || !metricOptions.some((option) => option.id === selectedMetricId)) {
-      setSelectedMetricId(metricOptions[0]?.id);
+    if (appliedInitialMetricRef.current === initialMetricId) {
+      return;
     }
-  }, [metricOptions, selectedMetricId]);
+    if (!metricOptions.some((option) => option.id === initialMetricId)) {
+      return;
+    }
+    appliedInitialMetricRef.current = initialMetricId;
+    setSelectedMetricId(initialMetricId);
+  }, [initialMetricId, metricOptions]);
+
+  useEffect(() => {
+    if (metricOptions.length === 0) {
+      if (selectedMetricId !== undefined) {
+        setSelectedMetricId(undefined);
+      }
+      return;
+    }
+
+    if (selectedMetricId && metricOptions.some((option) => option.id === selectedMetricId)) {
+      return;
+    }
+
+    const fallback =
+      (initialMetricId && metricOptions.some((option) => option.id === initialMetricId)
+        ? initialMetricId
+        : metricOptions[0]?.id) ?? undefined;
+
+    if (fallback !== selectedMetricId) {
+      setSelectedMetricId(fallback);
+    }
+  }, [metricOptions, selectedMetricId, initialMetricId]);
 
   const selectedSeries = useMemo(() => {
     if (metricOptions.length === 0) {

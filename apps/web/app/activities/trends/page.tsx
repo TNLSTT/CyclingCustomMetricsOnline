@@ -20,7 +20,15 @@ async function getActivities(token?: string): Promise<PaginatedActivities> {
   return (await response.json()) as PaginatedActivities;
 }
 
-export default async function ActivityTrendsPage() {
+interface ActivityTrendsPageProps {
+  searchParams?: {
+    metric?: string | string[];
+  };
+}
+
+export default async function ActivityTrendsPage({
+  searchParams,
+}: ActivityTrendsPageProps) {
   const session = await getServerAuthSession();
 
   if (env.authEnabled && !session) {
@@ -29,6 +37,8 @@ export default async function ActivityTrendsPage() {
 
   try {
     const { data: activities } = await getActivities(session?.accessToken);
+    const metricParam = searchParams?.metric;
+    const initialMetricId = typeof metricParam === 'string' ? metricParam : undefined;
 
     return (
       <div className="space-y-6">
@@ -38,7 +48,7 @@ export default async function ActivityTrendsPage() {
             Explore how your ride durations and computed metrics evolve across every activity you upload.
           </p>
         </div>
-        <ActivityTrendsChart activities={activities} />
+        <ActivityTrendsChart activities={activities} initialMetricId={initialMetricId} />
       </div>
     );
   } catch (error) {
