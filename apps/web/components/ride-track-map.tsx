@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type MutableRefObject, useEffect, useMemo, useRef } from 'react';
 
 import type { ActivityTrackBounds, ActivityTrackPoint, NumericLike } from '../types/activity';
 import { cn } from '../lib/utils';
+import { loadLeaflet } from '../lib/load-leaflet';
 
 interface RideTrackMapProps {
   points: ActivityTrackPoint[];
@@ -13,13 +14,42 @@ interface RideTrackMapProps {
 
 type NormalizedPoint = { latitude: number; longitude: number };
 
-type ProjectedPoint = { x: number; y: number };
-
 type NormalizedBounds = {
   minLatitude: number;
   maxLatitude: number;
   minLongitude: number;
   maxLongitude: number;
+};
+
+type LeafletMapInstance = {
+  remove: () => void;
+  fitBounds: (bounds: LeafletBoundsInstance, options?: Record<string, unknown>) => void;
+  setView: (latLng: unknown, zoom: number, options?: Record<string, unknown>) => void;
+  invalidateSize: () => void;
+};
+
+type LeafletBoundsInstance = {
+  pad: (value: number) => LeafletBoundsInstance;
+  isValid: () => boolean;
+};
+
+type LeafletTileLayerInstance = {
+  addTo: (map: LeafletMapInstance) => LeafletTileLayerInstance;
+  remove: () => void;
+};
+
+type LeafletPolylineInstance = {
+  addTo: (map: LeafletMapInstance) => LeafletPolylineInstance;
+  setLatLngs: (latLngs: unknown[]) => void;
+  getBounds: () => LeafletBoundsInstance;
+  remove: () => void;
+};
+
+type LeafletCircleMarkerInstance = {
+  addTo: (map: LeafletMapInstance) => LeafletCircleMarkerInstance;
+  setLatLng: (latLng: unknown) => void;
+  setStyle: (options: Record<string, unknown>) => void;
+  remove: () => void;
 };
 
 function coerceCoordinate(value: NumericLike | null | undefined): number | null {
@@ -84,234 +114,200 @@ function sanitizeBounds(bounds?: ActivityTrackBounds | null): NormalizedBounds |
   return { minLatitude, maxLatitude, minLongitude, maxLongitude } satisfies NormalizedBounds;
 }
 
-function computeProjectedPoints(
-  points: NormalizedPoint[],
-  bounds: NormalizedBounds | null,
-  width: number,
-  height: number,
-): ProjectedPoint[] {
-  if (points.length === 0 || width <= 0 || height <= 0) {
-    return [];
-  }
-
-  let minLatitude = Number.POSITIVE_INFINITY;
-  let maxLatitude = Number.NEGATIVE_INFINITY;
-  let minLongitude = Number.POSITIVE_INFINITY;
-  let maxLongitude = Number.NEGATIVE_INFINITY;
-
-  if (bounds) {
-    minLatitude = bounds.minLatitude;
-    maxLatitude = bounds.maxLatitude;
-    minLongitude = bounds.minLongitude;
-    maxLongitude = bounds.maxLongitude;
-  } else {
-    for (const point of points) {
-      minLatitude = Math.min(minLatitude, point.latitude);
-      maxLatitude = Math.max(maxLatitude, point.latitude);
-      minLongitude = Math.min(minLongitude, point.longitude);
-      maxLongitude = Math.max(maxLongitude, point.longitude);
-    }
-  }
-
-  if (!Number.isFinite(minLatitude) || !Number.isFinite(maxLatitude)) {
-    return [];
-  }
-
-  const latRange = Math.max(maxLatitude - minLatitude, 1e-6);
-  const midLatitudeRadians = ((maxLatitude + minLatitude) / 2) * (Math.PI / 180);
-  const lonScale = Math.max(Math.abs(Math.cos(midLatitudeRadians)), 1e-6);
-  const lonRange = Math.max((maxLongitude - minLongitude) * lonScale, 1e-6);
-  const scale = Math.min(width / lonRange, height / latRange);
-  const offsetX = (width - lonRange * scale) / 2;
-  const offsetY = (height - latRange * scale) / 2;
-
-  return points.map((point) => {
-    const projectedLon = (point.longitude - minLongitude) * lonScale;
-    const x = projectedLon * scale + offsetX;
-    const y = height - ((point.latitude - minLatitude) * scale + offsetY);
-    return { x, y } satisfies ProjectedPoint;
-  });
-}
-
-function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#0f172a');
-  gradient.addColorStop(0.5, '#1d4ed8');
-  gradient.addColorStop(1, '#9333ea');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 1;
-
-  const verticalLines = 10;
-  for (let index = 1; index <= verticalLines; index += 1) {
-    const x = (index / (verticalLines + 1)) * width;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-
-  const horizontalLines = 6;
-  for (let index = 1; index <= horizontalLines; index += 1) {
-    const y = (index / (horizontalLines + 1)) * height;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
-function drawRoute(
-  ctx: CanvasRenderingContext2D,
-  points: ProjectedPoint[],
-  width: number,
-  height: number,
-) {
-  if (points.length === 0) {
-    return;
-  }
-
-  const routeGradient = ctx.createLinearGradient(0, 0, width, 0);
-  routeGradient.addColorStop(0, '#bef264');
-  routeGradient.addColorStop(0.5, '#38bdf8');
-  routeGradient.addColorStop(1, '#f97316');
-
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = routeGradient;
-  ctx.lineWidth = Math.max(4, Math.min(width, height) * 0.012);
-  ctx.shadowColor = 'rgba(56, 189, 248, 0.4)';
-  ctx.shadowBlur = 18;
-
-  ctx.beginPath();
-  points.forEach((point, index) => {
-    if (index === 0) {
-      ctx.moveTo(point.x, point.y);
-    } else {
-      ctx.lineTo(point.x, point.y);
-    }
-  });
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawMarker(
-  ctx: CanvasRenderingContext2D,
-  point: ProjectedPoint | null,
-  color: string,
-  radius: number,
-) {
-  if (!point) {
-    return;
-  }
-
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
-  const [container, setContainer] = useState<HTMLDivElement | null>(null);
-  const containerRef = useCallback((node: HTMLDivElement | null) => {
-    setContainer(node);
-  }, []);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<LeafletMapInstance | null>(null);
+  const tileLayerRef = useRef<LeafletTileLayerInstance | null>(null);
+  const routeLayerRef = useRef<LeafletPolylineInstance | null>(null);
+  const startMarkerRef = useRef<LeafletCircleMarkerInstance | null>(null);
+  const finishMarkerRef = useRef<LeafletCircleMarkerInstance | null>(null);
+  const viewTokenRef = useRef<string | null>(null);
 
   const sanitizedPoints = useMemo(() => sanitizePoints(points), [points]);
   const sanitizedBounds = useMemo(() => sanitizeBounds(bounds), [bounds]);
 
   useEffect(() => {
-    if (!container) {
+    if (sanitizedPoints.length === 0) {
+      if (tileLayerRef.current) {
+        tileLayerRef.current.remove();
+        tileLayerRef.current = null;
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      routeLayerRef.current = null;
+      startMarkerRef.current = null;
+      finishMarkerRef.current = null;
+      viewTokenRef.current = null;
       return;
     }
 
-    const updateDimensions = (width: number, height: number) => {
-      setDimensions((current) => {
-        if (current.width === width && current.height === height) {
-          return current;
+    let cancelled = false;
+
+    const initializeMap = async () => {
+      try {
+        const L = await loadLeaflet();
+        if (cancelled || !containerRef.current) {
+          return;
         }
-        return { width, height };
-      });
+
+        let map = mapRef.current;
+        if (!map) {
+          map = L.map(containerRef.current, {
+            attributionControl: true,
+            zoomControl: true,
+            scrollWheelZoom: true,
+          });
+          mapRef.current = map;
+
+          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19,
+            detectRetina: true,
+          });
+          tileLayerRef.current = tileLayer.addTo(map);
+        }
+
+        const latLngs = sanitizedPoints.map((point) => L.latLng(point.latitude, point.longitude));
+        if (latLngs.length === 0) {
+          return;
+        }
+
+        if (!routeLayerRef.current) {
+          routeLayerRef.current = L.polyline(latLngs, {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.9,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(map);
+        } else {
+          routeLayerRef.current.setLatLngs(latLngs);
+        }
+
+        const ensureMarker = (
+          markerRef: MutableRefObject<LeafletCircleMarkerInstance | null>,
+          latLng: unknown,
+          color: string,
+        ) => {
+          if (!latLng) {
+            if (markerRef.current) {
+              markerRef.current.remove();
+              markerRef.current = null;
+            }
+            return;
+          }
+
+          if (!markerRef.current) {
+            markerRef.current = L.circleMarker(latLng, {
+              radius: 6,
+              color,
+              weight: 2,
+              opacity: 1,
+              fillColor: color,
+              fillOpacity: 1,
+            }).addTo(map);
+          } else {
+            markerRef.current.setLatLng(latLng);
+            markerRef.current.setStyle({ color, fillColor: color });
+          }
+        };
+
+        const startLatLng = latLngs[0] ?? null;
+        const finishLatLng = latLngs[latLngs.length - 1] ?? null;
+
+        ensureMarker(startMarkerRef, startLatLng, '#f97316');
+        ensureMarker(finishMarkerRef, finishLatLng, '#0ea5e9');
+
+        const readCoordinate = (value: unknown, key: 'lat' | 'lng'): number | null => {
+          if (!value || typeof value !== 'object') {
+            return null;
+          }
+          const numeric = (value as Record<string, unknown>)[key];
+          return typeof numeric === 'number' && Number.isFinite(numeric) ? numeric : null;
+        };
+
+        const startKeyLat = readCoordinate(startLatLng, 'lat');
+        const startKeyLng = readCoordinate(startLatLng, 'lng');
+        const finishKeyLat = readCoordinate(finishLatLng, 'lat');
+        const finishKeyLng = readCoordinate(finishLatLng, 'lng');
+
+        const boundsKey = `${startKeyLat ?? ''},${startKeyLng ?? ''}|${finishKeyLat ?? ''},${finishKeyLng ?? ''}|${
+          sanitizedBounds
+            ? `${sanitizedBounds.minLatitude},${sanitizedBounds.minLongitude},${sanitizedBounds.maxLatitude},${sanitizedBounds.maxLongitude}`
+            : 'no-bounds'
+        }`;
+
+        if (viewTokenRef.current !== boundsKey) {
+          let mapBounds: LeafletBoundsInstance | null = null;
+          if (sanitizedBounds) {
+            mapBounds = L.latLngBounds(
+              [sanitizedBounds.minLatitude, sanitizedBounds.minLongitude],
+              [sanitizedBounds.maxLatitude, sanitizedBounds.maxLongitude],
+            );
+          } else if (routeLayerRef.current) {
+            mapBounds = routeLayerRef.current.getBounds();
+          }
+
+          if (mapBounds && mapBounds.isValid()) {
+            map.fitBounds(mapBounds.pad(0.05), { animate: false });
+          } else if (startLatLng) {
+            map.setView(startLatLng, 13, { animate: false });
+          }
+
+          viewTokenRef.current = boundsKey;
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to initialize Leaflet map', error);
+      }
     };
 
-    const { width: initialWidth, height: initialHeight } = container.getBoundingClientRect();
-    if (initialWidth > 0 && initialHeight > 0) {
-      updateDimensions(initialWidth, initialHeight);
-    }
+    initializeMap();
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        updateDimensions(width, height);
-      }
-    });
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [container]);
+    return () => {
+      cancelled = true;
+    };
+  }, [sanitizedPoints, sanitizedBounds]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
+    const map = mapRef.current;
+    const element = containerRef.current;
+    if (!map || !element) {
       return;
     }
 
-    const { width, height } = dimensions;
-    if (width <= 0 || height <= 0) {
-      return;
-    }
+    map.invalidateSize();
 
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return;
-    }
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
 
-    const ratio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    canvas.width = Math.max(1, Math.floor(width * ratio));
-    canvas.height = Math.max(1, Math.floor(height * ratio));
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [sanitizedPoints.length]);
 
-    drawBackground(context, width, height);
-
-    if (sanitizedPoints.length === 0) {
-      return;
-    }
-
-    const projected = computeProjectedPoints(sanitizedPoints, sanitizedBounds, width, height);
-    if (projected.length === 0) {
-      return;
-    }
-
-    drawRoute(context, projected, width, height);
-
-    const start = projected[0] ?? null;
-    const finish = projected[projected.length - 1] ?? null;
-    const markerRadius = Math.max(6, Math.min(width, height) * 0.02);
-
-    drawMarker(context, start, '#f97316', markerRadius);
-    drawMarker(context, finish, '#38bdf8', markerRadius);
-  }, [sanitizedPoints, sanitizedBounds, dimensions]);
+  useEffect(() => {
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+      }
+      if (tileLayerRef.current) {
+        tileLayerRef.current.remove();
+      }
+      mapRef.current = null;
+      tileLayerRef.current = null;
+      routeLayerRef.current = null;
+      startMarkerRef.current = null;
+      finishMarkerRef.current = null;
+      viewTokenRef.current = null;
+    };
+  }, []);
 
   if (sanitizedPoints.length === 0) {
     return (
       <div
-        ref={containerRef}
         className={cn(
           'flex h-full w-full items-center justify-center rounded-xl bg-slate-900 text-sm text-slate-200',
           className,
@@ -326,8 +322,6 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
     <div
       ref={containerRef}
       className={cn('relative h-full w-full overflow-hidden rounded-xl bg-slate-900', className)}
-    >
-      <canvas ref={canvasRef} className="h-full w-full" />
-    </div>
+    />
   );
 }
