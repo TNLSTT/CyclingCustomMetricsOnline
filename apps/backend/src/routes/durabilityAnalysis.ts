@@ -78,6 +78,6 @@ durabilityAnalysisRouter.get(
     const userId = req.user!.id;
     const analysis = await getDurabilityAnalysis(userId, filters);
 
-    res.json(analysis);
+    res.status(200).json(analysis);
   }),
 );

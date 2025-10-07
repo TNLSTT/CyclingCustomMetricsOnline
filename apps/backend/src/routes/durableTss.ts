@@ -93,6 +93,6 @@ durableTssRouter.get(
     const userId = req.user!.id;
     const response = await getDurableTss(userId, filters);
 
-    res.json(response);
+    res.status(200).json(response);
   }),
 );

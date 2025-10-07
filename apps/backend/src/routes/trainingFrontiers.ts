@@ -17,6 +17,6 @@ trainingFrontiersRouter.get(
     const windowDays = typeof windowParam === 'string' ? Number(windowParam) : undefined;
 
     const response = await getTrainingFrontiers(req.user.id, windowDays);
-    res.json(response);
+    res.status(200).json(response);
   }),
 );

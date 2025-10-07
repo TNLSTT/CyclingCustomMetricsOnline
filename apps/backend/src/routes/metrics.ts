@@ -29,7 +29,7 @@ type IntervalEfficiencyHistoryRow = {
 export const metricsRouter = express.Router();
 
 metricsRouter.get('/', (_req, res) => {
-  res.json({ definitions: listMetricDefinitions() });
+  res.status(200).json({ definitions: listMetricDefinitions() });
 });
 
 function formatEfficiency(value: number | null): number | null {
@@ -61,7 +61,7 @@ metricsRouter.get(
       })) as IntervalEfficiencyHistoryRow[];
 
       if (metricResults.length === 0) {
-        res.json({
+        res.status(200).json({
           metric: {
             key: 'interval-efficiency',
             name: 'Interval Efficiency',
@@ -131,7 +131,7 @@ metricsRouter.get(
         }];
       });
 
-      res.json({
+      res.status(200).json({
         metric: {
           key: definition.key,
           name: definition.name,
@@ -143,7 +143,8 @@ metricsRouter.get(
       });
     } catch (error) {
       logger.error({ err: error }, 'Failed to load metric history');
-      throw error;
+      res.status(500).json({ error: 'Failed to load metric history.' });
+      return;
     }
   }),
 );
@@ -154,10 +155,11 @@ metricsRouter.get(
     try {
       const userId = req.user?.id;
       const analysis = await computeAdaptationEdges(userId);
-      res.json(analysis);
+      res.status(200).json(analysis);
     } catch (error) {
       logger.error({ err: error }, 'Failed to compute adaptation edges');
-      throw error;
+      res.status(500).json({ error: 'Failed to compute adaptation edges.' });
+      return;
     }
   }),
 );
@@ -168,10 +170,11 @@ metricsRouter.get(
     try {
       const userId = req.user?.id;
       const days = await computeMovingAverageInputs(userId);
-      res.json({ days });
+      res.status(200).json({ days });
     } catch (error) {
       logger.error({ err: error }, 'Failed to compute moving averages');
-      throw error;
+      res.status(500).json({ error: 'Failed to compute moving averages.' });
+      return;
     }
   }),
 );
@@ -192,10 +195,11 @@ metricsRouter.get(
         minPowerWatts: safeMinPower,
       });
 
-      res.json(analysis);
+      res.status(200).json(analysis);
     } catch (error) {
       logger.error({ err: error }, 'Failed to compute depth analysis');
-      throw error;
+      res.status(500).json({ error: 'Failed to compute depth analysis.' });
+      return;
     }
   }),
 );

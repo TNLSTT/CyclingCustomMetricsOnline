@@ -107,7 +107,7 @@ activitiesRouter.get(
       prisma.activity.count({ where: userId ? { userId } : undefined }),
     ]);
 
-    res.json({
+    res.status(200).json({
       data: activities.map(mapActivity),
       page: params.page,
       pageSize: params.pageSize,
@@ -140,7 +140,7 @@ activitiesRouter.get(
       return;
     }
 
-    res.json(mapActivity(activity));
+    res.status(200).json(mapActivity(activity));
   }),
 );
 
@@ -202,7 +202,7 @@ activitiesRouter.get(
     const latitudes = simplified.map((point) => point.latitude);
     const longitudes = simplified.map((point) => point.longitude);
 
-    res.json({
+    res.status(200).json({
       points: simplified.map((point) => {
         const base = { lat: point.latitude, lon: point.longitude } as {
           lat: number;
@@ -253,7 +253,7 @@ activitiesRouter.get(
       power: typeof sample.power === 'number' && Number.isFinite(sample.power) ? sample.power : null,
     }));
 
-    res.json({ samples: formatted });
+    res.status(200).json({ samples: formatted });
   }),
 );
 
@@ -269,7 +269,7 @@ activitiesRouter.post(
     const metricKeys = body?.metricKeys;
 
     const results = await runMetrics(req.params.id, metricKeys ?? undefined, req.user?.id);
-    res.json({ activityId: req.params.id, results });
+    res.status(200).json({ activityId: req.params.id, results });
   }),
 );
 
@@ -297,7 +297,7 @@ activitiesRouter.get(
     const summary = metricResult.summary as Record<string, unknown>;
     const intervals = normalizeIntervalEfficiencySeries(metricResult.series);
 
-    res.json({
+    res.status(200).json({
       intervals,
       intervalSeconds:
         typeof summary.interval_seconds === 'number'
@@ -330,7 +330,7 @@ activitiesRouter.get(
       return;
     }
 
-    res.json({
+    res.status(200).json({
       key: metricResult.metricDefinition.key,
       definition: metricResult.metricDefinition,
       summary: metricResult.summary,
