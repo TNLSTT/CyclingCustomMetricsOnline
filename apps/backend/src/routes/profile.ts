@@ -130,13 +130,13 @@ profileRouter.get(
 
     const userId = req.user?.id;
     if (!userId) {
-      res.json(null);
+      res.status(200).json(null);
       return;
     }
 
     const profile = await getOrCreateProfile(userId);
 
-    res.json(profile);
+    res.status(200).json(profile);
   }),
 );
 
@@ -184,17 +184,17 @@ profileRouter.put(
 
     if (!existing) {
       const created = await prisma.profile.create({ data: { userId, ...updateData } });
-      res.json(created);
+      res.status(200).json(created);
       return;
     }
 
     if (Object.keys(updateData).length === 0) {
-      res.json(existing);
+      res.status(200).json(existing);
       return;
     }
 
     const updated = await prisma.profile.update({ where: { userId }, data: updateData });
 
-    res.json(updated);
+    res.status(200).json(updated);
   }),
 );
