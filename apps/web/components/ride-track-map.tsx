@@ -1,10 +1,11 @@
 'use client';
 
-import { type MutableRefObject, useEffect, useMemo, useRef } from 'react';
+import { type MutableRefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ActivityTrackBounds, ActivityTrackPoint, NumericLike } from '../types/activity';
 import { cn } from '../lib/utils';
 import { loadLeaflet } from '../lib/load-leaflet';
+import { motion } from 'framer-motion';
 
 interface RideTrackMapProps {
   points: ActivityTrackPoint[];
@@ -121,6 +122,7 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
   const routeLayerRef = useRef<LeafletPolylineInstance | null>(null);
   const startMarkerRef = useRef<LeafletCircleMarkerInstance | null>(null);
   const finishMarkerRef = useRef<LeafletCircleMarkerInstance | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const viewTokenRef = useRef<string | null>(null);
 
   const sanitizedPoints = useMemo(() => sanitizePoints(points), [points]);
@@ -144,6 +146,7 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
     }
 
     let cancelled = false;
+    setIsReady(false);
 
     const initializeMap = async () => {
       try {
@@ -258,6 +261,10 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
 
           viewTokenRef.current = boundsKey;
         }
+
+        if (!cancelled) {
+          setIsReady(true);
+        }
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Failed to initialize Leaflet map', error);
@@ -305,6 +312,11 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
     };
   }, []);
 
+  const containerAnimation = useMemo(
+    () => (isReady ? { opacity: 1, transform: 'scale(1)' } : { opacity: 0.65, transform: 'scale(0.97)' }),
+    [isReady],
+  );
+
   if (sanitizedPoints.length === 0) {
     return (
       <div
@@ -319,9 +331,12 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
   }
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
       className={cn('relative h-full w-full overflow-hidden rounded-xl bg-slate-900', className)}
+      initial={{ opacity: 0, transform: 'scale(0.95)' }}
+      animate={containerAnimation}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
     />
   );
 }
