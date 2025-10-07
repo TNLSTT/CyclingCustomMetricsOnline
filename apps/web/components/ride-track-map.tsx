@@ -13,9 +13,25 @@ const VIEWBOX_WIDTH = 800;
 const VIEWBOX_HEIGHT = 600;
 
 function normalizePoints(points: ActivityTrackPoint[]) {
-  const sanitized = points.filter(
-    (point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
-  );
+  const sanitized: Array<{ latitude: number; longitude: number }> = points
+    .map((point) => {
+      const latitude = typeof point.latitude === 'number'
+        ? point.latitude
+        : point.latitude != null
+          ? Number.parseFloat(String(point.latitude))
+          : null;
+      const longitude = typeof point.longitude === 'number'
+        ? point.longitude
+        : point.longitude != null
+          ? Number.parseFloat(String(point.longitude))
+          : null;
+
+      return { latitude, longitude };
+    })
+    .filter(
+      (point): point is { latitude: number; longitude: number } =>
+        Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+    );
 
   if (sanitized.length === 0) {
     return [] as Array<[number, number]>;
