@@ -59,37 +59,44 @@ export function ActivityTable({ activities }: ActivityTableProps) {
 
   const filtered = useMemo(() => {
     const trimmedQuery = query.trim().toLowerCase();
-
-    return augmented.filter(({ activity, formattedStart }) => {
-      const hasMetrics = activity.metrics.length > 0;
-      if (status === 'ready' && !hasMetrics) {
-        return false;
-      }
-      if (status === 'pending' && hasMetrics) {
-        return false;
-      }
-
-      if (selectedMetric !== 'all' && !activity.metrics.some((metric) => metric.key === selectedMetric)) {
-        return false;
-      }
-
-      if (trimmedQuery.length > 0) {
-        const haystack = [
-          activity.source,
-          formattedStart,
-          formatDuration(activity.durationSec),
-          activity.metrics.map((metric) => metric.key).join(' '),
-        ]
-          .join(' ')
-          .toLowerCase();
-
-        if (!haystack.includes(trimmedQuery)) {
-          return false;
+    const scored = augmented
+      .map((entry) => {
+        const hasMetrics = entry.activity.metrics.length > 0;
+        if (status === 'ready' && !hasMetrics) {
+          return null;
         }
-      }
+        if (status === 'pending' && hasMetrics) {
+          return null;
+        }
 
-      return true;
-    });
+        if (selectedMetric !== 'all' && !entry.activity.metrics.some((metric) => metric.key === selectedMetric)) {
+          return null;
+        }
+
+        const searchText = buildActivitySearchText(entry, entry.activity);
+        const score = trimmedQuery.length > 0 ? fuzzyScore(trimmedQuery, searchText) : 1;
+        if (trimmedQuery.length > 0 && score === 0) {
+          return null;
+        }
+
+        return { entry, score };
+      })
+      .filter((value): value is { entry: AugmentedActivity; score: number } => value !== null);
+
+    if (trimmedQuery.length === 0) {
+      return scored.map((item) => item.entry);
+    }
+
+    return scored
+      .sort((a, b) => {
+        if (b.score === a.score) {
+          return (
+            new Date(b.entry.activity.startTime).getTime() - new Date(a.entry.activity.startTime).getTime()
+          );
+        }
+        return b.score - a.score;
+      })
+      .map((item) => item.entry);
   }, [augmented, status, selectedMetric, query]);
 
   const handleResetFilters = () => {
@@ -108,7 +115,7 @@ export function ActivityTable({ activities }: ActivityTableProps) {
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by source, start time, or metric key"
+                placeholder="Search by date, distance, name, or metric"
                 className="pl-9"
                 aria-label="Search activities"
               />
@@ -237,4 +244,38 @@ export function ActivityTable({ activities }: ActivityTableProps) {
       </CardContent>
     </Card>
   );
+}
+
+function buildActivitySearchText(entry: AugmentedActivity, activity: ActivitySummary) {
+  const fields = [
+    activity.source,
+    entry.formattedStart,
+    activity.name ?? '',
+    activity.metrics.map((metric) => metric.key).join(' '),
+    formatDuration(activity.durationSec),
+  ];
+  if (activity.distanceMeters != null) {
+    fields.push(`${(activity.distanceMeters / 1000).toFixed(1)} km`);
+  }
+  return fields
+    .join(' ')
+    .toLowerCase();
+}
+
+function fuzzyScore(query: string, text: string): number {
+  if (!query) {
+    return 1;
+  }
+  const condensed = query.replace(/\s+/g, '');
+  let score = 0;
+  let index = 0;
+  for (const char of condensed) {
+    const found = text.indexOf(char, index);
+    if (found === -1) {
+      return 0;
+    }
+    score += 1;
+    index = found + 1;
+  }
+  return score / condensed.length;
 }

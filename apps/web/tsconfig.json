@@ -15,7 +15,8 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "framer-motion": ["./lib/framer-motion"]
+      "framer-motion": ["./lib/framer-motion"],
+      "sonner": ["./lib/sonner"]
     },
     "types": ["node", "next-auth"],
     "plugins": [

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
-import { TriangleAlert } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 import { fetchTrainingFrontiers } from '../lib/api';
 import { formatDuration } from '../lib/utils';
@@ -564,7 +564,7 @@ export function TrainingFrontiersClient({
             <div className="space-y-2">
               {missingDataNotices.map((notice) => (
                 <Alert key={notice.key}>
-                  <TriangleAlert className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{notice.title}</AlertTitle>
                   <AlertDescription>{notice.description}</AlertDescription>
                 </Alert>

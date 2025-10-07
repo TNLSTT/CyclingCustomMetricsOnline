@@ -172,6 +172,10 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
           tileLayerRef.current = tileLayer.addTo(map);
         }
 
+        if (!map) {
+          return;
+        }
+
         const latLngs = sanitizedPoints.map((point) => L.latLng(point.latitude, point.longitude));
         if (latLngs.length === 0) {
           return;
