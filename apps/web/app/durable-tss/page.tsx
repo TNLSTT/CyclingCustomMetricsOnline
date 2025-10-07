@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { DurableTssClient } from '../../components/durable-tss-client';
+import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
@@ -41,13 +42,11 @@ export default async function DurableTssPage() {
 
   if (!initialData) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Durable TSS explorer</h1>
-          <p className="text-muted-foreground">
-            Visualize the training load you accumulate once fatigue sets in and your kilojoule burn passes a critical threshold.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Durable TSS explorer"
+          description="Visualize the training load you accumulate once fatigue sets in and your kilojoule burn passes a critical threshold."
+        />
         <Alert variant="destructive">
           <AlertTitle>Unable to load durable TSS data</AlertTitle>
           <AlertDescription>
@@ -59,13 +58,11 @@ export default async function DurableTssPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Durable TSS explorer</h1>
-        <p className="text-muted-foreground">
-          Quantify how much structured stress you carry deep into rides by calculating TSS only after a chosen kilojoule mark.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="Durable TSS explorer"
+        description="Quantify how much structured stress you carry deep into rides by calculating TSS only after a chosen kilojoule mark."
+      />
       <DurableTssClient initialData={initialData} defaultThresholdKj={DEFAULT_THRESHOLD_KJ} />
     </div>
   );

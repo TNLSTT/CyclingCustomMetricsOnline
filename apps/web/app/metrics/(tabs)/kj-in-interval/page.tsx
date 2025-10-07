@@ -5,6 +5,7 @@ import { env } from '../../../../lib/env';
 import type { ActivitySummary, PaginatedActivities } from '../../../../types/activity';
 import type { AdaptationEdgesResponse } from '../../../../types/adaptation';
 import { KjIntervalTab } from '../../../../components/kj-interval-tab';
+import { PageHeader } from '../../../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
 
 async function getActivities(token?: string): Promise<ActivitySummary[]> {
@@ -50,24 +51,27 @@ export default async function KjInIntervalPage() {
     ]);
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">KJ in interval</h1>
-          <p className="text-muted-foreground">
-            Calculate how much work you complete inside contiguous training-zone intervals using configurable power
-            ranges and minimum durations.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="KJ in interval"
+          description="Calculate how much work you complete inside contiguous training-zone intervals using configurable power ranges and minimum durations."
+        />
         <KjIntervalTab activities={activities} ftpEstimate={adaptation.ftpEstimate} />
       </div>
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error while fetching data.';
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load KJ in interval</AlertTitle>
-        <AlertDescription>{message}</AlertDescription>
-      </Alert>
+      <div className="space-y-10">
+        <PageHeader
+          title="KJ in interval"
+          description="Calculate how much work you complete inside contiguous training-zone intervals using configurable power ranges and minimum durations."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load KJ in interval</AlertTitle>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
 }

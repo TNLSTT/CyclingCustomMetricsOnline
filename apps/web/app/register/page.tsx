@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { RegisterForm } from '../../components/register-form';
+import { PageHeader } from '../../components/page-header';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
 
@@ -16,13 +17,12 @@ export default async function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col space-y-4">
-      <div className="space-y-1 text-center">
-        <h1 className="text-3xl font-bold">Create your account</h1>
-        <p className="text-sm text-muted-foreground">
-          Register to keep your uploads and metrics private to your login.
-        </p>
-      </div>
+    <div className="mx-auto flex max-w-md flex-col space-y-8">
+      <PageHeader
+        align="center"
+        title="Create your account"
+        description="Register to keep your uploads and metrics private to your login."
+      />
       <RegisterForm />
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}

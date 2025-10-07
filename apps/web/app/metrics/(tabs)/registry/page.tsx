@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { MetricsDefinitionBrowser } from '../../../../components/metrics-definition-browser';
+import { PageHeader } from '../../../../components/page-header';
 import { Button } from '../../../../components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../../../../components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
@@ -19,14 +20,11 @@ export default async function MetricsPage() {
     const definitions = await fetchMetricDefinitions(session?.accessToken);
 
     return (
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Metric registry</h1>
-          <p className="text-muted-foreground">
-            Each metric is self-contained with a definition, compute function, and Vitest coverage. Filter and
-            copy keys to accelerate experimentation in your analytics pipeline.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Metric registry"
+          description="Each metric is self-contained with a definition, compute function, and Vitest coverage. Filter and copy keys to accelerate experimentation in your analytics pipeline."
+        />
         <MetricsDefinitionBrowser definitions={definitions} />
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -63,13 +61,19 @@ export default async function MetricsPage() {
       error instanceof Error ? error.message : 'Unknown error while fetching metric definitions.';
 
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load metric registry</AlertTitle>
-        <AlertDescription>
-          {message}. Ensure the backend API is running and the metric definitions have been seeded{' '}
-          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm seed</code>.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-10">
+        <PageHeader
+          title="Metric registry"
+          description="Each metric is self-contained with a definition, compute function, and Vitest coverage. Filter and copy keys to accelerate experimentation in your analytics pipeline."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load metric registry</AlertTitle>
+          <AlertDescription>
+            {message}. Ensure the backend API is running and the metric definitions have been seeded{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">pnpm seed</code>.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 }

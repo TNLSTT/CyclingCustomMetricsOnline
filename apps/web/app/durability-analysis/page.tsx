@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { DurabilityAnalysisClient } from '../../components/durability-analysis-client';
+import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { getServerAuthSession } from '../../lib/auth';
 import { env } from '../../lib/env';
@@ -39,13 +40,11 @@ export default async function DurabilityAnalysisPage() {
 
   if (!initialData) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Durability analysis</h1>
-          <p className="text-muted-foreground">
-            Investigate how well you hold power and efficiency deep into your longest rides.
-          </p>
-        </div>
+      <div className="space-y-10">
+        <PageHeader
+          title="Durability analysis"
+          description="Investigate how well you hold power and efficiency deep into your longest rides."
+        />
         <Alert variant="destructive">
           <AlertTitle>Unable to load durability data</AlertTitle>
           <AlertDescription>
@@ -58,14 +57,11 @@ export default async function DurabilityAnalysisPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Durability analysis</h1>
-        <p className="text-muted-foreground">
-          Filter long endurance rides, compute late-ride resilience metrics, and visualize how your
-          durability evolves over time.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        title="Durability analysis"
+        description="Filter long endurance rides, compute late-ride resilience metrics, and visualize how your durability evolves over time."
+      />
       <DurabilityAnalysisClient initialData={initialData} defaultMinDurationMinutes={DEFAULT_MIN_DURATION_MINUTES} />
     </div>
   );
