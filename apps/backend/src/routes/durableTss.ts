@@ -36,6 +36,28 @@ const filtersSchema = z.object({
     }),
 });
 
+export function normalizeDateBoundary(value: string | undefined, boundary: 'start' | 'end'): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  const hasTimeComponent = value.includes('T');
+  if (!hasTimeComponent) {
+    if (boundary === 'start') {
+      date.setUTCHours(0, 0, 0, 0);
+    } else {
+      date.setUTCHours(23, 59, 59, 999);
+    }
+  }
+
+  return date;
+}
+
 const DEFAULT_THRESHOLD_KJ = 1000;
 
 export const durableTssRouter = express.Router();
@@ -64,8 +86,8 @@ durableTssRouter.get(
     const thresholdKjValue = parsed.data.thresholdKj != null ? Number(parsed.data.thresholdKj) : undefined;
     const filters = {
       thresholdKj: thresholdKjValue ?? DEFAULT_THRESHOLD_KJ,
-      startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : undefined,
-      endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : undefined,
+      startDate: normalizeDateBoundary(parsed.data.startDate, 'start'),
+      endDate: normalizeDateBoundary(parsed.data.endDate, 'end'),
     };
 
     const userId = req.user!.id;
