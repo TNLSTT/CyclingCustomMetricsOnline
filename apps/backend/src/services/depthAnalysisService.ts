@@ -213,19 +213,25 @@ function computeRollingAverage(values: number[], windowSize: number): Array<numb
   }
 
   const result: Array<number | null> = values.map(() => null);
-  const window: number[] = [];
+  const window = new Array<number>(windowSize);
+  let filled = 0;
+  let startIndex = 0;
   let sum = 0;
 
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    window.push(value);
-    sum += value;
 
-    if (window.length > windowSize) {
-      const removed = window.shift();
-      if (removed != null) {
-        sum -= removed;
-      }
+    if (filled < windowSize) {
+      const insertIndex = (startIndex + filled) % windowSize;
+      window[insertIndex] = value;
+      filled += 1;
+      sum += value;
+    } else {
+      const oldest = window[startIndex]!;
+      sum -= oldest;
+      window[startIndex] = value;
+      sum += value;
+      startIndex = (startIndex + 1) % windowSize;
     }
 
     if (index >= windowSize - 1) {

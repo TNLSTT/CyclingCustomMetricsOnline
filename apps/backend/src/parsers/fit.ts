@@ -1,4 +1,5 @@
-import fs from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { isMainThread, parentPort, Worker } from 'node:worker_threads';
 
 import FitParserPkg from 'fit-file-parser';
 
@@ -31,6 +32,16 @@ type FitParserInstance = {
 
 type FitParserConstructor = new (options: Record<string, unknown>) => FitParserInstance;
 
+type FitWorkerRequest = {
+  fileBuffer: ArrayBuffer;
+  byteOffset: number;
+  byteLength: number;
+};
+
+type FitWorkerResponse =
+  | { result: NormalizedActivity; error?: undefined }
+  | { result?: undefined; error: { message: string; stack?: string } };
+
 function resolveFitParserConstructor(module: unknown): FitParserConstructor {
   if (typeof module === 'function') {
     return module as FitParserConstructor;
@@ -57,6 +68,24 @@ function createParser() {
     speedUnit: 'm/s',
     lengthUnit: 'm',
   });
+}
+
+async function readFileToBuffer(filePath: string): Promise<Buffer> {
+  const stream = createReadStream(filePath);
+  const chunks: Buffer[] = [];
+  let totalLength = 0;
+
+  try {
+    for await (const chunk of stream) {
+      const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+      chunks.push(chunkBuffer);
+      totalLength += chunkBuffer.length;
+    }
+  } finally {
+    stream.destroy();
+  }
+
+  return Buffer.concat(chunks, totalLength);
 }
 
 async function parseFitBuffer(fileBuffer: Buffer): Promise<{
@@ -191,9 +220,7 @@ function cloneSample(sample: NormalizedActivitySample, t: number): NormalizedAct
   };
 }
 
-export async function parseFitFile(filePath: string): Promise<NormalizedActivity> {
-  const fileBuffer = await fs.readFile(filePath);
-
+async function normalizeFitBuffer(fileBuffer: Buffer): Promise<NormalizedActivity> {
   const { data } = await parseFitBuffer(fileBuffer);
 
   const timestampedRecords = (data.records ?? [])
@@ -298,4 +325,118 @@ export async function parseFitFile(filePath: string): Promise<NormalizedActivity
     sampleRateHz,
     samples,
   };
+}
+
+async function normalizeFitInWorker(fileBuffer: Buffer): Promise<NormalizedActivity> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./fit.ts', import.meta.url), { type: 'module' });
+
+    let settled = false;
+
+    const cleanup = () => {
+      worker.off('message', onMessage);
+      worker.off('error', onError);
+      worker.off('exit', onExit);
+    };
+
+    const onMessage = (message: FitWorkerResponse) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+
+      if (message.error) {
+        const error = new Error(message.error.message);
+        error.name = 'FitWorkerParseError';
+        error.stack = message.error.stack;
+        reject(error);
+        return;
+      }
+
+      resolve(message.result);
+    };
+
+    const onError = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const onExit = (code: number) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+
+      if (code === 0) {
+        reject(new Error('FIT parser worker exited without sending a result.'));
+      } else {
+        reject(new Error(`FIT parser worker exited with code ${code}.`));
+      }
+    };
+
+    worker.on('message', onMessage);
+    worker.on('error', onError);
+    worker.on('exit', onExit);
+
+    worker.postMessage(
+      {
+        fileBuffer: fileBuffer.buffer,
+        byteOffset: fileBuffer.byteOffset,
+        byteLength: fileBuffer.byteLength,
+      } as FitWorkerRequest,
+      [fileBuffer.buffer],
+    );
+  });
+}
+
+export async function parseFitFile(filePath: string): Promise<NormalizedActivity> {
+  const fileBuffer = await readFileToBuffer(filePath);
+
+  if (!isMainThread) {
+    return normalizeFitBuffer(fileBuffer);
+  }
+
+  try {
+    return await normalizeFitInWorker(fileBuffer);
+  } catch (error) {
+    if (error instanceof Error && error.name === 'FitWorkerParseError') {
+      throw error;
+    }
+
+    logger.warn(
+      { err: error },
+      'FIT parser worker failed, falling back to main-thread normalization',
+    );
+
+    const retryBuffer = await readFileToBuffer(filePath);
+    return normalizeFitBuffer(retryBuffer);
+  }
+}
+
+function serializeWorkerError(error: unknown): { message: string; stack?: string } {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack };
+  }
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+  return { message: 'Unknown error while parsing FIT file' };
+}
+
+if (!isMainThread && parentPort) {
+  parentPort.once('message', async (message: FitWorkerRequest) => {
+    try {
+      const buffer = Buffer.from(message.fileBuffer, message.byteOffset, message.byteLength);
+      const result = await normalizeFitBuffer(buffer);
+      parentPort.postMessage({ result } satisfies FitWorkerResponse);
+    } catch (error) {
+      parentPort.postMessage({ error: serializeWorkerError(error) } satisfies FitWorkerResponse);
+    }
+  });
 }
