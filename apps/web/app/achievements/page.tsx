@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { AchievementSection } from '../../components/achievement-section';
+import { TrophyCase } from '../../components/trophy-case';
 
 export const metadata: Metadata = {
   title: 'Achievements | Cycling Custom Metrics',
@@ -26,7 +27,8 @@ export default function AchievementsPage() {
         </div>
       </section>
 
-      <AchievementSection className="shadow-lg shadow-primary/5" />
+      <TrophyCase id="trophy-case" />
+      <AchievementSection id="tracker" className="shadow-lg shadow-primary/5" />
     </div>
   );
 }
