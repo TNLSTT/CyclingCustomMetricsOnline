@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ActivityTrackBounds, ActivityTrackPoint, NumericLike } from '../types/activity';
 import { cn } from '../lib/utils';
@@ -217,7 +217,10 @@ function drawMarker(
 }
 
 export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    setContainer(node);
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
     width: 0,
@@ -228,26 +231,34 @@ export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
   const sanitizedBounds = useMemo(() => sanitizeBounds(bounds), [bounds]);
 
   useEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
+    if (!container) {
       return;
+    }
+
+    const updateDimensions = (width: number, height: number) => {
+      setDimensions((current) => {
+        if (current.width === width && current.height === height) {
+          return current;
+        }
+        return { width, height };
+      });
+    };
+
+    const { width: initialWidth, height: initialHeight } = container.getBoundingClientRect();
+    if (initialWidth > 0 && initialHeight > 0) {
+      updateDimensions(initialWidth, initialHeight);
     }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        setDimensions((current) => {
-          if (current.width === width && current.height === height) {
-            return current;
-          }
-          return { width, height };
-        });
+        updateDimensions(width, height);
       }
     });
 
-    observer.observe(element);
+    observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [container]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
