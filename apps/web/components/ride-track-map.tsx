@@ -1,19 +1,28 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { ActivityTrackPoint } from '../types/activity';
+import type { ActivityTrackBounds, ActivityTrackPoint, NumericLike } from '../types/activity';
 import { cn } from '../lib/utils';
 
 interface RideTrackMapProps {
   points: ActivityTrackPoint[];
+  bounds?: ActivityTrackBounds | null;
   className?: string;
 }
 
-const VIEWBOX_WIDTH = 800;
-const VIEWBOX_HEIGHT = 600;
+type NormalizedPoint = { latitude: number; longitude: number };
 
-function coerceCoordinate(value: unknown): number | null {
+type ProjectedPoint = { x: number; y: number };
+
+type NormalizedBounds = {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+};
+
+function coerceCoordinate(value: NumericLike | null | undefined): number | null {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
   }
@@ -27,157 +36,283 @@ function coerceCoordinate(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  if (typeof value === 'bigint') {
-    const coerced = Number(value);
-    return Number.isFinite(coerced) ? coerced : null;
-  }
-
-  if (typeof value === 'object' && value !== null) {
-    if (typeof (value as { toNumber?: () => unknown }).toNumber === 'function') {
-      try {
-        return coerceCoordinate((value as { toNumber: () => unknown }).toNumber());
-      } catch {
-        return null;
-      }
-    }
-
-    if (typeof (value as { valueOf?: () => unknown }).valueOf === 'function') {
-      try {
-        const primitive = (value as { valueOf: () => unknown }).valueOf();
-        if (primitive !== value) {
-          return coerceCoordinate(primitive);
-        }
-      } catch {
-        return null;
-      }
-    }
-
-    if (typeof (value as { toString?: () => string }).toString === 'function') {
-      try {
-        return coerceCoordinate((value as { toString: () => string }).toString());
-      } catch {
-        return null;
-      }
-    }
-  }
-
   return null;
 }
 
-function normalizePoints(points: ActivityTrackPoint[]) {
-  const sanitized: Array<{ latitude: number; longitude: number }> = points
+function sanitizePoints(points: ActivityTrackPoint[]): NormalizedPoint[] {
+  return points
     .map((point) => {
       if (!point || typeof point !== 'object') {
         return null;
       }
 
-      const latitude = coerceCoordinate((point as ActivityTrackPoint).latitude);
-      const longitude = coerceCoordinate((point as ActivityTrackPoint).longitude);
+      const latitude = coerceCoordinate(point.latitude);
+      const longitude = coerceCoordinate(point.longitude);
 
       if (latitude == null || longitude == null) {
         return null;
       }
 
-      return { latitude, longitude };
+      return { latitude, longitude } satisfies NormalizedPoint;
     })
-    .filter((point): point is { latitude: number; longitude: number } => point !== null);
+    .filter((point): point is NormalizedPoint => point !== null);
+}
 
-  if (sanitized.length === 0) {
-    return [] as Array<[number, number]>;
+function sanitizeBounds(bounds?: ActivityTrackBounds | null): NormalizedBounds | null {
+  if (!bounds) {
+    return null;
   }
 
-  let minLat = Number.POSITIVE_INFINITY;
-  let maxLat = Number.NEGATIVE_INFINITY;
-  let minLon = Number.POSITIVE_INFINITY;
-  let maxLon = Number.NEGATIVE_INFINITY;
+  const minLatitude = coerceCoordinate(bounds.minLatitude);
+  const maxLatitude = coerceCoordinate(bounds.maxLatitude);
+  const minLongitude = coerceCoordinate(bounds.minLongitude);
+  const maxLongitude = coerceCoordinate(bounds.maxLongitude);
 
-  for (const point of sanitized) {
-    minLat = Math.min(minLat, point.latitude);
-    maxLat = Math.max(maxLat, point.latitude);
-    minLon = Math.min(minLon, point.longitude);
-    maxLon = Math.max(maxLon, point.longitude);
+  if (
+    minLatitude == null ||
+    maxLatitude == null ||
+    minLongitude == null ||
+    maxLongitude == null
+  ) {
+    return null;
   }
 
-  const latRange = Math.max(maxLat - minLat, 1e-6);
-  const midLatitudeRadians = ((maxLat + minLat) / 2) * (Math.PI / 180);
-  // Longitude degrees shrink by cos(latitude); adjust so tracks keep their aspect ratio.
-  const lonToLatRatio = Math.max(Math.abs(Math.cos(midLatitudeRadians)), 1e-6);
-  const lonRange = Math.max((maxLon - minLon) * lonToLatRatio, 1e-6);
-  const scale = Math.min(VIEWBOX_WIDTH / lonRange, VIEWBOX_HEIGHT / latRange);
-  const offsetX = (VIEWBOX_WIDTH - lonRange * scale) / 2;
-  const offsetY = (VIEWBOX_HEIGHT - latRange * scale) / 2;
+  return { minLatitude, maxLatitude, minLongitude, maxLongitude } satisfies NormalizedBounds;
+}
 
-  return sanitized.map((point) => {
-    const projectedLon = (point.longitude - minLon) * lonToLatRatio;
+function computeProjectedPoints(
+  points: NormalizedPoint[],
+  bounds: NormalizedBounds | null,
+  width: number,
+  height: number,
+): ProjectedPoint[] {
+  if (points.length === 0 || width <= 0 || height <= 0) {
+    return [];
+  }
+
+  let minLatitude = Number.POSITIVE_INFINITY;
+  let maxLatitude = Number.NEGATIVE_INFINITY;
+  let minLongitude = Number.POSITIVE_INFINITY;
+  let maxLongitude = Number.NEGATIVE_INFINITY;
+
+  if (bounds) {
+    minLatitude = bounds.minLatitude;
+    maxLatitude = bounds.maxLatitude;
+    minLongitude = bounds.minLongitude;
+    maxLongitude = bounds.maxLongitude;
+  } else {
+    for (const point of points) {
+      minLatitude = Math.min(minLatitude, point.latitude);
+      maxLatitude = Math.max(maxLatitude, point.latitude);
+      minLongitude = Math.min(minLongitude, point.longitude);
+      maxLongitude = Math.max(maxLongitude, point.longitude);
+    }
+  }
+
+  if (!Number.isFinite(minLatitude) || !Number.isFinite(maxLatitude)) {
+    return [];
+  }
+
+  const latRange = Math.max(maxLatitude - minLatitude, 1e-6);
+  const midLatitudeRadians = ((maxLatitude + minLatitude) / 2) * (Math.PI / 180);
+  const lonScale = Math.max(Math.abs(Math.cos(midLatitudeRadians)), 1e-6);
+  const lonRange = Math.max((maxLongitude - minLongitude) * lonScale, 1e-6);
+  const scale = Math.min(width / lonRange, height / latRange);
+  const offsetX = (width - lonRange * scale) / 2;
+  const offsetY = (height - latRange * scale) / 2;
+
+  return points.map((point) => {
+    const projectedLon = (point.longitude - minLongitude) * lonScale;
     const x = projectedLon * scale + offsetX;
-    const y = VIEWBOX_HEIGHT - ((point.latitude - minLat) * scale + offsetY);
-    return [Number.parseFloat(x.toFixed(2)), Number.parseFloat(y.toFixed(2))] as [number, number];
+    const y = height - ((point.latitude - minLatitude) * scale + offsetY);
+    return { x, y } satisfies ProjectedPoint;
   });
 }
 
-export function RideTrackMap({ points, className }: RideTrackMapProps) {
-  const normalized = useMemo(() => normalizePoints(points), [points]);
-  const hasRoute = normalized.length > 0;
+function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, '#0f172a');
+  gradient.addColorStop(0.5, '#1d4ed8');
+  gradient.addColorStop(1, '#9333ea');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
 
-  const pathData = useMemo(() => {
-    if (!hasRoute) {
-      return '';
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+
+  const verticalLines = 10;
+  for (let index = 1; index <= verticalLines; index += 1) {
+    const x = (index / (verticalLines + 1)) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  const horizontalLines = 6;
+  for (let index = 1; index <= horizontalLines; index += 1) {
+    const y = (index / (horizontalLines + 1)) * height;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawRoute(
+  ctx: CanvasRenderingContext2D,
+  points: ProjectedPoint[],
+  width: number,
+  height: number,
+) {
+  if (points.length === 0) {
+    return;
+  }
+
+  const routeGradient = ctx.createLinearGradient(0, 0, width, 0);
+  routeGradient.addColorStop(0, '#bef264');
+  routeGradient.addColorStop(0.5, '#38bdf8');
+  routeGradient.addColorStop(1, '#f97316');
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = routeGradient;
+  ctx.lineWidth = Math.max(4, Math.min(width, height) * 0.012);
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.4)';
+  ctx.shadowBlur = 18;
+
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
     }
-    const commands = normalized.map(([x, y], index) => {
-      return `${index === 0 ? 'M' : 'L'}${x} ${y}`;
-    });
-    return commands.join(' ');
-  }, [hasRoute, normalized]);
+  });
+  ctx.stroke();
+  ctx.restore();
+}
 
-  const start = hasRoute ? normalized[0] : null;
-  const finish = hasRoute ? normalized[normalized.length - 1] : null;
+function drawMarker(
+  ctx: CanvasRenderingContext2D,
+  point: ProjectedPoint | null,
+  color: string,
+  radius: number,
+) {
+  if (!point) {
+    return;
+  }
+
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+export function RideTrackMap({ points, bounds, className }: RideTrackMapProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+
+  const sanitizedPoints = useMemo(() => sanitizePoints(points), [points]);
+  const sanitizedBounds = useMemo(() => sanitizeBounds(bounds), [bounds]);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setDimensions((current) => {
+          if (current.width === width && current.height === height) {
+            return current;
+          }
+          return { width, height };
+        });
+      }
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const { width, height } = dimensions;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    const ratio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    canvas.width = Math.max(1, Math.floor(width * ratio));
+    canvas.height = Math.max(1, Math.floor(height * ratio));
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+    drawBackground(context, width, height);
+
+    if (sanitizedPoints.length === 0) {
+      return;
+    }
+
+    const projected = computeProjectedPoints(sanitizedPoints, sanitizedBounds, width, height);
+    if (projected.length === 0) {
+      return;
+    }
+
+    drawRoute(context, projected, width, height);
+
+    const start = projected[0] ?? null;
+    const finish = projected[projected.length - 1] ?? null;
+    const markerRadius = Math.max(6, Math.min(width, height) * 0.02);
+
+    drawMarker(context, start, '#f97316', markerRadius);
+    drawMarker(context, finish, '#38bdf8', markerRadius);
+  }, [sanitizedPoints, sanitizedBounds, dimensions]);
+
+  if (sanitizedPoints.length === 0) {
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          'flex h-full w-full items-center justify-center rounded-xl bg-slate-900 text-sm text-slate-200',
+          className,
+        )}
+      >
+        No valid GPS samples were found for this ride.
+      </div>
+    );
+  }
 
   return (
-    <div className={cn('relative', className)}>
-      <svg viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} className="h-full w-full">
-        <defs>
-          <linearGradient id="ride-map-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0f172a" />
-            <stop offset="50%" stopColor="#1d4ed8" />
-            <stop offset="100%" stopColor="#9333ea" />
-          </linearGradient>
-          <linearGradient id="ride-map-path" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#bef264" />
-            <stop offset="50%" stopColor="#38bdf8" />
-            <stop offset="100%" stopColor="#f97316" />
-          </linearGradient>
-          <filter id="ride-map-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#ride-map-bg)" rx="24" />
-        <g opacity="0.15" stroke="#e2e8f0" strokeWidth="1">
-          {Array.from({ length: 10 }).map((_, index) => {
-            const x = ((index + 1) / 11) * VIEWBOX_WIDTH;
-            return <line key={`v-${index}`} x1={x} y1={0} x2={x} y2={VIEWBOX_HEIGHT} />;
-          })}
-          {Array.from({ length: 6 }).map((_, index) => {
-            const y = ((index + 1) / 7) * VIEWBOX_HEIGHT;
-            return <line key={`h-${index}`} x1={0} y1={y} x2={VIEWBOX_WIDTH} y2={y} />;
-          })}
-        </g>
-        {hasRoute && pathData ? (
-          <g filter="url(#ride-map-glow)">
-            <path d={pathData} fill="none" stroke="url(#ride-map-path)" strokeWidth="10" strokeLinecap="round" />
-          </g>
-        ) : null}
-        {start ? <circle cx={start[0]} cy={start[1]} r={14} fill="#f97316" opacity="0.9" /> : null}
-        {finish ? <circle cx={finish[0]} cy={finish[1]} r={14} fill="#38bdf8" opacity="0.9" /> : null}
-      </svg>
-      {!hasRoute ? (
-        <div className="absolute inset-0 flex items-center justify-center px-4 text-sm text-slate-200">
-          No valid GPS samples were found for this ride.
-        </div>
-      ) : null}
+    <div
+      ref={containerRef}
+      className={cn('relative h-full w-full overflow-hidden rounded-xl bg-slate-900', className)}
+    >
+      <canvas ref={canvasRef} className="h-full w-full" />
     </div>
   );
 }

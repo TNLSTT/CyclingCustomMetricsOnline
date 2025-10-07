@@ -14,19 +14,23 @@ export interface ActivitySummary {
   metrics: MetricSummary[];
 }
 
+export type NumericLike = number | string;
+
 export interface ActivityTrackPoint {
-  latitude: number;
-  longitude: number;
+  latitude: NumericLike;
+  longitude: NumericLike;
+}
+
+export interface ActivityTrackBounds {
+  minLatitude: NumericLike;
+  maxLatitude: NumericLike;
+  minLongitude: NumericLike;
+  maxLongitude: NumericLike;
 }
 
 export interface ActivityTrackResponse {
   points: ActivityTrackPoint[];
-  bounds: {
-    minLatitude: number;
-    maxLatitude: number;
-    minLongitude: number;
-    maxLongitude: number;
-  };
+  bounds: ActivityTrackBounds;
 }
 
 export interface PowerStreamSample {
