@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import { useId } from 'react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
 
 interface MetricInsightDetail {
   label: string;
@@ -21,9 +23,19 @@ interface MetricSummaryCardProps {
   description?: string;
   units?: string | null;
   insight?: MetricInsight;
+  trendHref?: string;
+  trendLabel?: string;
 }
 
-export function MetricSummaryCard({ title, value, description, units, insight }: MetricSummaryCardProps) {
+export function MetricSummaryCard({
+  title,
+  value,
+  description,
+  units,
+  insight,
+  trendHref,
+  trendLabel,
+}: MetricSummaryCardProps) {
   const tooltipId = useId();
 
   const formattedValue =
@@ -109,6 +121,13 @@ export function MetricSummaryCard({ title, value, description, units, insight }:
             <span className="ml-1 text-base font-normal text-muted-foreground">{units}</span>
           ) : null}
         </div>
+        {trendHref ? (
+          <Button asChild size="sm" className="mt-4 w-full" variant="secondary">
+            <Link href={trendHref} aria-label={`View ${title} trends`} prefetch={false}>
+              {trendLabel ?? 'View trend'}
+            </Link>
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );
