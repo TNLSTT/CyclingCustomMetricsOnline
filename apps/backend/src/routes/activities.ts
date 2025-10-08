@@ -43,6 +43,12 @@ function mapActivity(activity: ActivityWithMetrics) {
     durationSec: activity.durationSec,
     sampleRateHz: activity.sampleRateHz,
     createdAt: activity.createdAt,
+    name: activity.name,
+    distanceMeters: activity.distanceMeters,
+    totalElevationGain: activity.totalElevationGain,
+    averagePower: activity.averagePower,
+    averageHeartRate: activity.averageHeartRate,
+    averageCadence: activity.averageCadence,
     metrics: (activity.metrics ?? []).map((metric: any) => ({
       key: metric.metricDefinition.key,
       summary: metric.summary,
@@ -140,7 +146,50 @@ activitiesRouter.get(
       return;
     }
 
-    res.status(200).json(mapActivity(activity));
+    const baseWhere = userId ? { userId } : {};
+
+    const [previousActivity, nextActivity] = await Promise.all([
+      prisma.activity.findFirst({
+        where: {
+          ...baseWhere,
+          OR: [
+            { startTime: { lt: activity.startTime } },
+            {
+              startTime: activity.startTime,
+              createdAt: { lt: activity.createdAt },
+            },
+          ],
+        },
+        orderBy: [
+          { startTime: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        select: { id: true },
+      }),
+      prisma.activity.findFirst({
+        where: {
+          ...baseWhere,
+          OR: [
+            { startTime: { gt: activity.startTime } },
+            {
+              startTime: activity.startTime,
+              createdAt: { gt: activity.createdAt },
+            },
+          ],
+        },
+        orderBy: [
+          { startTime: 'asc' },
+          { createdAt: 'asc' },
+        ],
+        select: { id: true },
+      }),
+    ]);
+
+    res.status(200).json({
+      ...mapActivity(activity),
+      previousActivityId: previousActivity?.id ?? null,
+      nextActivityId: nextActivity?.id ?? null,
+    });
   }),
 );
 

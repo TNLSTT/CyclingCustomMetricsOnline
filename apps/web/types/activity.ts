@@ -18,6 +18,8 @@ export interface ActivitySummary {
   averagePower?: number | null;
   averageHeartRate?: number | null;
   averageCadence?: number | null;
+  previousActivityId?: string | null;
+  nextActivityId?: string | null;
 }
 
 export type NumericLike = number | string;

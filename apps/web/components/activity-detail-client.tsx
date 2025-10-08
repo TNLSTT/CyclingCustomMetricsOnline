@@ -426,6 +426,8 @@ export function ActivityDetailClient({
         trackBounds={trackBounds}
         isTrackLoading={isTrackLoading}
         trackError={trackError}
+        previousActivityId={activity.previousActivityId ?? null}
+        nextActivityId={activity.nextActivityId ?? null}
       />
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="max-w-xl text-sm text-muted-foreground">
