@@ -73,7 +73,7 @@ const metricQueries: Record<Metric, (bucket: Bucket, tz: string, userId: string 
       WITH activity_power AS (
         SELECT
           s."activityId" AS activity_id,
-          AVG(s.power) AS avg_power,
+          AVG(s.power) AS avg_power
         FROM "ActivitySample" s
         WHERE s.power IS NOT NULL
         GROUP BY s."activityId"
@@ -117,7 +117,7 @@ const metricQueries: Record<Metric, (bucket: Bucket, tz: string, userId: string 
       WITH activity_power AS (
         SELECT
           s."activityId" AS activity_id,
-          AVG(s.power) AS avg_power,
+          AVG(s.power) AS avg_power
         FROM "ActivitySample" s
         WHERE s.power IS NOT NULL
         GROUP BY s."activityId"
