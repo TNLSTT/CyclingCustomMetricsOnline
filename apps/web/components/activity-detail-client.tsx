@@ -21,6 +21,7 @@ import type {
 import { ActivitySummaryHero } from './activity-summary-hero';
 import { HcsrChart } from './hcsr-chart';
 import { IntervalEfficiencyChart } from './interval-efficiency-chart';
+import { WhrEfficiencyChart } from './whr-efficiency-chart';
 import { MetricSummaryCard } from './metric-summary-card';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -35,6 +36,7 @@ interface ActivityDetailClientProps {
   initialIntervalEfficiency?: IntervalEfficiencyResponse | null;
   initialNormalizedPower?: MetricResultDetail | null;
   initialLateAerobicEfficiency?: MetricResultDetail | null;
+  initialWhrEfficiency?: MetricResultDetail | null;
 }
 
 type HcsrSummary = {
@@ -81,6 +83,38 @@ type LateAerobicSummary = {
   totalWindowSamples?: number | null;
   analyzedWindowSeconds?: number | null;
   requestedWindowSeconds?: number | null;
+};
+
+type WhrSummary = {
+  median?: number | null;
+  p25?: number | null;
+  p75?: number | null;
+  earlyMedian?: number | null;
+  lateMedian?: number | null;
+  driftPercent?: number | null;
+  driftRatio?: number | null;
+  coverageRatio?: number | null;
+  validSampleCount?: number | null;
+  totalSampleCount?: number | null;
+  windowSeconds?: number | null;
+  windowCount?: number | null;
+  validWindowCount?: number | null;
+  sampleRateHz?: number | null;
+  earlySampleCount?: number | null;
+  lateSampleCount?: number | null;
+};
+
+type WhrSeriesPoint = {
+  windowIndex: number;
+  startSec: number | null;
+  endSec: number | null;
+  midpointSec: number | null;
+  midpointMinutes: number | null;
+  durationSeconds: number | null;
+  coverageRatio: number | null;
+  sampleCount: number | null;
+  validSampleCount: number | null;
+  percentiles: Record<string, number | null>;
 };
 
 function parseHcsrSummary(metric: MetricResultDetail | null | undefined): HcsrSummary {
@@ -177,12 +211,89 @@ function parseLateAerobicSummary(metric: MetricResultDetail | null | undefined):
   };
 }
 
+function parseWhrSummary(metric: MetricResultDetail | null | undefined): WhrSummary {
+  if (!metric) {
+    return {};
+  }
+  const summary = metric.summary as Record<string, unknown>;
+  const readNumber = (key: string) =>
+    typeof summary[key] === 'number' ? (summary[key] as number) : null;
+
+  return {
+    median: readNumber('median_w_per_bpm'),
+    p25: readNumber('p25_w_per_bpm'),
+    p75: readNumber('p75_w_per_bpm'),
+    earlyMedian: readNumber('early_median_w_per_bpm'),
+    lateMedian: readNumber('late_median_w_per_bpm'),
+    driftPercent: readNumber('drift_percent'),
+    driftRatio: readNumber('drift_ratio'),
+    coverageRatio: readNumber('coverage_ratio'),
+    validSampleCount: readNumber('valid_sample_count'),
+    totalSampleCount: readNumber('total_sample_count'),
+    windowSeconds: readNumber('window_seconds'),
+    windowCount: readNumber('window_count'),
+    validWindowCount: readNumber('valid_window_count'),
+    sampleRateHz: readNumber('sample_rate_hz'),
+    earlySampleCount: readNumber('early_sample_count'),
+    lateSampleCount: readNumber('late_sample_count'),
+  };
+}
+
+function parseWhrSeries(metric: MetricResultDetail | null | undefined): WhrSeriesPoint[] {
+  if (!metric || !Array.isArray(metric.series)) {
+    return [];
+  }
+
+  return metric.series
+    .map((entry) => {
+      if (typeof entry !== 'object' || entry === null) {
+        return null;
+      }
+      const payload = entry as Record<string, unknown>;
+      const windowIndex = typeof payload.window_index === 'number' ? (payload.window_index as number) : null;
+      if (windowIndex == null) {
+        return null;
+      }
+
+      const percentiles: Record<string, number | null> = {};
+      for (const [key, value] of Object.entries(payload)) {
+        if (key.startsWith('p') && key.endsWith('_w_per_bpm')) {
+          const percentileKey = key.slice(0, key.indexOf('_'));
+          percentiles[percentileKey] = typeof value === 'number' ? (value as number) : null;
+        }
+      }
+
+      const startSec = typeof payload.start_sec === 'number' ? (payload.start_sec as number) : null;
+      const endSec = typeof payload.end_sec === 'number' ? (payload.end_sec as number) : null;
+      const midpointSec = typeof payload.midpoint_sec === 'number' ? (payload.midpoint_sec as number) : null;
+      const durationSeconds =
+        typeof payload.duration_seconds === 'number' ? (payload.duration_seconds as number) : null;
+      return {
+        windowIndex,
+        startSec,
+        endSec,
+        midpointSec,
+        midpointMinutes: midpointSec != null ? midpointSec / 60 : null,
+        durationSeconds,
+        coverageRatio:
+          typeof payload.coverage_ratio === 'number' ? (payload.coverage_ratio as number) : null,
+        sampleCount: typeof payload.sample_count === 'number' ? (payload.sample_count as number) : null,
+        validSampleCount:
+          typeof payload.valid_sample_count === 'number' ? (payload.valid_sample_count as number) : null,
+        percentiles,
+      };
+    })
+    .filter((point): point is WhrSeriesPoint => point !== null)
+    .sort((a, b) => a.windowIndex - b.windowIndex);
+}
+
 export function ActivityDetailClient({
   activity,
   initialHcsr,
   initialIntervalEfficiency,
   initialNormalizedPower,
   initialLateAerobicEfficiency,
+  initialWhrEfficiency,
 }: ActivityDetailClientProps) {
   const { data: session } = useSession();
   const [isPending, startTransition] = useTransition();
@@ -196,6 +307,9 @@ export function ActivityDetailClient({
   );
   const [lateAerobicMetric, setLateAerobicMetric] = useState<MetricResultDetail | null | undefined>(
     initialLateAerobicEfficiency,
+  );
+  const [whrMetric, setWhrMetric] = useState<MetricResultDetail | null | undefined>(
+    initialWhrEfficiency,
   );
   const [trackPoints, setTrackPoints] = useState<ActivityTrackPoint[]>([]);
   const [trackBounds, setTrackBounds] = useState<ActivityTrackBounds | null>(null);
@@ -211,6 +325,8 @@ export function ActivityDetailClient({
   const normalizedSummary = parseNormalizedPowerSummary(normalizedMetric ?? null);
   const normalizedSeries = parseNormalizedPowerSeries(normalizedMetric ?? null);
   const lateAerobicSummary = parseLateAerobicSummary(lateAerobicMetric ?? null);
+  const whrSummary = parseWhrSummary(whrMetric ?? null);
+  const whrSeries = parseWhrSeries(whrMetric ?? null);
   const intervalSummaries = intervalEfficiency?.intervals ?? [];
   const hasIntervalData = intervalSummaries.length > 0;
 
@@ -266,20 +382,27 @@ export function ActivityDetailClient({
       try {
         await computeMetrics(
           activity.id,
-          ['hcsr', 'interval-efficiency', 'normalized-power', 'late-aerobic-efficiency'],
+          ['hcsr', 'interval-efficiency', 'normalized-power', 'late-aerobic-efficiency', 'whr-efficiency'],
           session?.accessToken,
         );
-        const [latestHcsr, latestIntervalEfficiency, latestNormalized, latestLateAerobic] =
-          await Promise.all([
-            fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
-            fetchIntervalEfficiency(activity.id, session?.accessToken),
-            fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
-            fetchMetricResult(activity.id, 'late-aerobic-efficiency', session?.accessToken),
-          ]);
+        const [
+          latestHcsr,
+          latestIntervalEfficiency,
+          latestNormalized,
+          latestLateAerobic,
+          latestWhr,
+        ] = await Promise.all([
+          fetchMetricResult(activity.id, 'hcsr', session?.accessToken),
+          fetchIntervalEfficiency(activity.id, session?.accessToken),
+          fetchMetricResult(activity.id, 'normalized-power', session?.accessToken),
+          fetchMetricResult(activity.id, 'late-aerobic-efficiency', session?.accessToken),
+          fetchMetricResult(activity.id, 'whr-efficiency', session?.accessToken),
+        ]);
         setMetric(latestHcsr);
         setIntervalEfficiency(latestIntervalEfficiency);
         setNormalizedMetric(latestNormalized);
         setLateAerobicMetric(latestLateAerobic);
+        setWhrMetric(latestWhr);
       } catch (err) {
         setError((err as Error).message);
       }
@@ -328,6 +451,66 @@ export function ActivityDetailClient({
     typeof activity.sampleRateHz === 'number' && Number.isFinite(activity.sampleRateHz) && activity.sampleRateHz > 0
       ? `${Number.parseFloat(activity.sampleRateHz.toFixed(2))} Hz recording`
       : 'Not recorded';
+  const whrMedianDisplay = formatNumber(whrSummary.median, 3);
+  const whrP25Display = formatNumber(whrSummary.p25, 3);
+  const whrP75Display = formatNumber(whrSummary.p75, 3);
+  const whrEarlyMedianDisplay = formatNumber(whrSummary.earlyMedian, 3);
+  const whrLateMedianDisplay = formatNumber(whrSummary.lateMedian, 3);
+  const whrDriftPercentDisplay = formatNumber(whrSummary.driftPercent, 2);
+  const whrDriftRatioDisplay = formatNumber(whrSummary.driftRatio, 3);
+  const whrCoveragePercentValue =
+    whrSummary.coverageRatio != null ? whrSummary.coverageRatio * 100 : null;
+  const whrCoveragePercentDisplay = formatNumber(whrCoveragePercentValue, 1);
+  const whrCoverageRatioDisplay = formatNumber(whrSummary.coverageRatio, 3);
+  const whrValidSamplesDisplay = formatNumber(whrSummary.validSampleCount);
+  const whrTotalSamplesDisplay = formatNumber(whrSummary.totalSampleCount);
+  const whrWindowSecondsDisplay = formatNumber(whrSummary.windowSeconds);
+  const whrWindowMinutesDisplay =
+    whrSummary.windowSeconds != null ? formatNumber(whrSummary.windowSeconds / 60, 2) : '—';
+  const whrWindowCountDisplay = formatNumber(whrSummary.windowCount);
+  const whrValidWindowCountDisplay = formatNumber(whrSummary.validWindowCount);
+  const whrSampleRateDisplay = formatNumber(whrSummary.sampleRateHz, 2);
+  const whrEarlySampleCountDisplay = formatNumber(whrSummary.earlySampleCount);
+  const whrLateSampleCountDisplay = formatNumber(whrSummary.lateSampleCount);
+  const whrMedianDetail = detailValue(whrMedianDisplay, 'W/bpm');
+  const whrP25Detail = detailValue(whrP25Display, 'W/bpm');
+  const whrP75Detail = detailValue(whrP75Display, 'W/bpm');
+  const whrEarlyMedianDetail = detailValue(whrEarlyMedianDisplay, 'W/bpm');
+  const whrLateMedianDetail = detailValue(whrLateMedianDisplay, 'W/bpm');
+  const whrDriftPercentDetail = detailValue(whrDriftPercentDisplay, '%');
+  const whrDriftRatioDetail = detailValue(whrDriftRatioDisplay);
+  const whrCoverageRatioText =
+    whrCoverageRatioDisplay === '—' ? 'ratio unavailable' : `${whrCoverageRatioDisplay} ratio`;
+  const whrCoverageDetail =
+    whrCoveragePercentDisplay === '—'
+      ? 'Not available'
+      : `${whrCoveragePercentDisplay}% of samples paired (${whrCoverageRatioText})`;
+  const whrCoveragePercentDetail = detailValue(whrCoveragePercentDisplay, '%');
+  const whrValidSampleDetail =
+    whrValidSamplesDisplay === '—'
+      ? 'Not available'
+      : whrTotalSamplesDisplay === '—'
+        ? `${whrValidSamplesDisplay} paired samples`
+        : `${whrValidSamplesDisplay} of ${whrTotalSamplesDisplay} samples with paired HR & power`;
+  const whrWindowSecondsDetail = detailValue(whrWindowSecondsDisplay, 's per window');
+  const whrWindowMinutesDetail =
+    whrWindowMinutesDisplay === '—'
+      ? 'Not available'
+      : `${whrWindowMinutesDisplay} min per window`;
+  const whrWindowCountDetail = detailValue(whrWindowCountDisplay, 'windows analyzed');
+  const whrValidWindowDetail = detailValue(whrValidWindowCountDisplay, 'windows with coverage');
+  const whrSampleRateDetail =
+    whrSampleRateDisplay === '—'
+      ? 'Not available'
+      : `${whrSampleRateDisplay} Hz recording`;
+  const whrEarlySampleDetail =
+    whrEarlySampleCountDisplay === '—'
+      ? 'Not available'
+      : `${whrEarlySampleCountDisplay} early samples`;
+  const whrLateSampleDetail =
+    whrLateSampleCountDisplay === '—'
+      ? 'Not available'
+      : `${whrLateSampleCountDisplay} late samples`;
   const lateWattsPerBpmDisplay = formatNumber(lateAerobicSummary.wattsPerBpm, 3);
   const lateAveragePowerDisplay = formatNumber(lateAerobicSummary.averagePower, 1);
   const lateAverageHrDisplay = formatNumber(lateAerobicSummary.averageHeartRate, 1);
@@ -420,6 +603,7 @@ export function ActivityDetailClient({
         variabilityIndex={normalizedSummary.variabilityIndex ?? null}
         coastingShare={normalizedSummary.coastingShare ?? null}
         lateWattsPerBpm={lateAerobicSummary.wattsPerBpm ?? null}
+        overallWhr={whrSummary.median ?? null}
         intervalSummaries={intervalSummaries}
         onOpenComparison={() => setIsComparisonOpen(true)}
         trackPoints={trackPoints}
@@ -767,6 +951,101 @@ export function ActivityDetailClient({
           trendLabel="View rolling windows trend"
         />
       </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricSummaryCard
+          title="Median W/HR"
+          value={whrMedianDisplay}
+          units="W/bpm"
+          description="Typical watts per heartbeat across the full ride"
+          insight={{
+            calculation:
+              'Pairs every valid power and heart-rate sample, converts to watts-per-beat, and aggregates the median across adaptive 2–5 minute windows.',
+            importance:
+              'Summarises baseline aerobic efficiency. Higher medians mean more mechanical work for each cardiac beat.',
+            usage:
+              'Trend this value on steady endurance rides to monitor aerobic fitness and the impact of heat, fatigue, or fueling.',
+            technicalDetails: [
+              { label: 'Median', value: whrMedianDetail },
+              { label: 'p25', value: whrP25Detail },
+              { label: 'p75', value: whrP75Detail },
+              { label: 'Window length', value: whrWindowSecondsDetail },
+              { label: 'Windows analysed', value: whrWindowCountDetail },
+              { label: 'Valid windows', value: whrValidWindowDetail },
+            ],
+            notes: ['Requires paired power and heart-rate data across the ride.'],
+          }}
+          trendHref={createTrendHref('whr-efficiency.median_w_per_bpm')}
+          trendLabel="View W/HR trend"
+        />
+        <MetricSummaryCard
+          title="Drift vs. first half"
+          value={whrDriftPercentDisplay}
+          units="%"
+          description="Change in watts-per-beat between ride halves"
+          insight={{
+            calculation:
+              'Splits the ratio stream halfway through the ride and compares late median W/HR against the opening half.',
+            importance:
+              'Highlights aerobic decoupling. Negative drift means efficiency fell later in the ride.',
+            usage:
+              'Watch for rising drift when heat, fueling, or fatigue issues appear. Pair with late-ride metrics for context.',
+            technicalDetails: [
+              { label: 'Drift ratio', value: whrDriftRatioDetail },
+              { label: 'First-half median', value: whrEarlyMedianDetail },
+              { label: 'Second-half median', value: whrLateMedianDetail },
+              { label: 'First-half samples', value: whrEarlySampleDetail },
+              { label: 'Second-half samples', value: whrLateSampleDetail },
+            ],
+            notes: ['Zero or positive drift suggests similar or improved efficiency late in the ride.'],
+          }}
+          trendHref={createTrendHref('whr-efficiency.drift_percent')}
+          trendLabel="View drift trend"
+        />
+        <MetricSummaryCard
+          title="Paired coverage"
+          value={whrCoveragePercentDisplay}
+          units="%"
+          description="Share of samples with both power and HR"
+          insight={{
+            calculation:
+              'Counts samples containing numeric watt and heart-rate readings and divides by the total samples processed.',
+            importance:
+              'Coverage shows how trustworthy the curve is. Sparse coverage weakens window-level insights.',
+            usage:
+              'Aim for ≥80% coverage before comparing rides. Investigate sensors if coverage drops unexpectedly.',
+            technicalDetails: [
+              { label: 'Current value', value: whrCoveragePercentDetail },
+              { label: 'Detail', value: whrCoverageDetail },
+              { label: 'Paired samples', value: whrValidSampleDetail },
+              { label: 'Window length', value: whrWindowMinutesDetail },
+              { label: 'Windows analysed', value: whrWindowCountDetail },
+              { label: 'Sample rate', value: whrSampleRateDetail },
+            ],
+            notes: ['Low coverage often indicates missing sensors or extensive coasting.'],
+          }}
+          trendHref={createTrendHref('whr-efficiency.coverage_ratio')}
+          trendLabel="View coverage trend"
+        />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Watts/HR efficiency curve</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {whrSeries.length > 0 ? (
+            <WhrEfficiencyChart series={whrSeries} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Compute the watts-per-heart-rate metric on a ride with paired power and heart rate to visualise efficiency drift.
+            </p>
+          )}
+          <p className="mt-4 text-xs text-muted-foreground">
+            Window length: {whrWindowSecondsDisplay !== '—' ? `${whrWindowSecondsDisplay} s` : '—'} (
+            {whrWindowMinutesDisplay !== '—' ? `${whrWindowMinutesDisplay} min` : '—'}) · Windows analysed:{' '}
+            {whrWindowCountDisplay === '—' ? '—' : whrWindowCountDisplay}
+          </p>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-4">
         <MetricSummaryCard
           title="Late-ride W/HR"

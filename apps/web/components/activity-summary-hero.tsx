@@ -24,6 +24,7 @@ interface ActivitySummaryHeroProps {
   variabilityIndex?: number | null;
   coastingShare?: number | null;
   lateWattsPerBpm?: number | null;
+  overallWhr?: number | null;
   intervalSummaries: IntervalEfficiencyInterval[];
   onOpenComparison: () => void;
   trackPoints: ActivityTrackPoint[];
@@ -55,6 +56,7 @@ export function ActivitySummaryHero({
   variabilityIndex,
   coastingShare,
   lateWattsPerBpm,
+  overallWhr,
   intervalSummaries,
   onOpenComparison,
   trackPoints,
@@ -249,6 +251,13 @@ export function ActivitySummaryHero({
           {coastingBadge ? (
             <Tooltip content={coastingBadge.helper}>
               <Badge className={coastingBadge.tone}>{coastingBadge.label}</Badge>
+            </Tooltip>
+          ) : null}
+          {overallWhr != null ? (
+            <Tooltip content="Median watts-per-heart-rate ratio across the full ride.">
+              <Badge className="border border-indigo-500/40 bg-indigo-500/15 text-indigo-900 dark:text-indigo-100">
+                Median W/HR: {formatNumber(overallWhr, 2)}
+              </Badge>
             </Tooltip>
           ) : null}
           {lateWattsPerBpm != null ? (
