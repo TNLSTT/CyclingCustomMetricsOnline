@@ -1,6 +1,7 @@
 'use client';
 
-import { CalendarDays, Flag, Gauge, MapPin, Route, Sparkles, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight, CalendarDays, Flag, Gauge, MapPin, Route, Sparkles, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 
 import type {
@@ -29,6 +30,8 @@ interface ActivitySummaryHeroProps {
   trackBounds: ActivityTrackBounds | null;
   isTrackLoading: boolean;
   trackError: string | null;
+  previousActivityId: string | null;
+  nextActivityId: string | null;
 }
 
 function formatNumber(value: number | null | undefined, digits = 0) {
@@ -58,6 +61,8 @@ export function ActivitySummaryHero({
   trackBounds,
   isTrackLoading,
   trackError,
+  previousActivityId,
+  nextActivityId,
 }: ActivitySummaryHeroProps) {
   const activityDate = useMemo(() => new Date(activity.startTime), [activity.startTime]);
   const formattedStart = useMemo(() => activityDate.toLocaleString(), [activityDate]);
@@ -121,15 +126,69 @@ export function ActivitySummaryHero({
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="rounded-2xl border bg-background/80 p-6 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted-foreground">{activity.source}</p>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {activity.name ? activity.name : 'Ride overview'}
-            </h1>
-            <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarDays className="h-4 w-4" aria-hidden="true" />
-              <span>{formattedStart}</span>
-            </p>
+          <div className="flex items-start gap-3 sm:items-center">
+            <div className="flex items-center gap-2">
+              <Tooltip content={previousActivityId ? 'View the previous activity' : 'No previous activity available'}>
+                {previousActivityId ? (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full border border-border"
+                    aria-label="Previous activity"
+                  >
+                    <Link href={`/activities/${previousActivityId}`} prefetch={false}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full border border-dashed"
+                    aria-label="No previous activity"
+                    disabled
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+              </Tooltip>
+              <Tooltip content={nextActivityId ? 'View the next activity' : 'No next activity available'}>
+                {nextActivityId ? (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full border border-border"
+                    aria-label="Next activity"
+                  >
+                    <Link href={`/activities/${nextActivityId}`} prefetch={false}>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full border border-dashed"
+                    aria-label="No next activity"
+                    disabled
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </Tooltip>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{activity.source}</p>
+              <h1 className="text-3xl font-bold tracking-tight">
+                {activity.name ? activity.name : 'Ride overview'}
+              </h1>
+              <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                <span>{formattedStart}</span>
+              </p>
+            </div>
           </div>
           <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
             <Tooltip content="Launch an overlay to compare this ride with another activity's power or heart rate trends.">
