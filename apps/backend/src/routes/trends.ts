@@ -39,16 +39,21 @@ interface TrendRow {
   n: bigint;
 }
 
+const POSTGRES_TIMEZONE_ALIASES: Record<string, string> = {
+  'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+};
+
 function resolveTimezone(tz: string): string {
   if (!tz) {
     return 'UTC';
   }
 
+  const normalizedTz = POSTGRES_TIMEZONE_ALIASES[tz] ?? tz;
+
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return tz;
-  } catch (error) {
+    new Intl.DateTimeFormat('en-US', { timeZone: normalizedTz });
+    return normalizedTz;
+  } catch (_error) {
     return 'UTC';
   }
 }
