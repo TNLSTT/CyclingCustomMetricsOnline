@@ -181,12 +181,13 @@ File: `apps/backend/src/metrics/lateAerobicEfficiency.ts`
 - Guards against short rides by reporting nulls when the analysis window cannot be satisfied, and logs sample counts for quic
 k validation.
 
-#### Watts/HR Efficiency Curve *(planned)*
+#### Watts/HR Efficiency Curve
 
 File: `apps/backend/src/metrics/whrEfficiency.ts`
 
-- Placeholder for a future aerobic decoupling visual that will chart percentiles of the power-to-heart-rate ratio over time.
-- Currently returns a “not implemented” summary so the UI can label the metric as upcoming without failing computations.
+- Splits the ride into rolling 2–5 minute windows (duration adapts to ride length) and computes watts-per-heart-beat ratios.
+- Reports window-level 25th/50th/75th percentile curves plus overall medians, drift between halves of the ride, and coverage stats.
+- Enables front-end charting of aerobic efficiency trends with clear context around sample counts and window coverage.
 
 #### Torque Variability Index *(planned)*
 
