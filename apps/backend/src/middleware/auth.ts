@@ -25,3 +25,17 @@ export const requireAuth: RequestHandler = (req, res, next) => {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
+
+export const requireAdmin: RequestHandler = (req, res, next) => {
+  if (!env.AUTH_ENABLED) {
+    res.status(403).json({ error: 'Admin access is disabled' });
+    return;
+  }
+
+  if (!req.user || req.user.role !== 'ADMIN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  next();
+};

@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 import { activitiesRouter } from './activities.js';
 import { authRouter } from './auth.js';
@@ -11,6 +11,7 @@ import { durabilityAnalysisRouter } from './durabilityAnalysis.js';
 import { durableTssRouter } from './durableTss.js';
 import { trainingFrontiersRouter } from './trainingFrontiers.js';
 import { trendsRouter } from './trends.js';
+import { adminRouter } from './admin.js';
 
 export const apiRouter = express.Router();
 
@@ -23,3 +24,4 @@ apiRouter.use('/durability-analysis', requireAuth, durabilityAnalysisRouter);
 apiRouter.use('/durable-tss', requireAuth, durableTssRouter);
 apiRouter.use('/training-frontiers', requireAuth, trainingFrontiersRouter);
 apiRouter.use('/trends', requireAuth, trendsRouter);
+apiRouter.use('/admin', requireAuth, requireAdmin, adminRouter);

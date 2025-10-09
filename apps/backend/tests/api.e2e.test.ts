@@ -61,7 +61,7 @@ vi.mock('../src/services/ingestService.js', () => ({
 const app = createApp();
 const fixturePath = new URL('./fixtures/mock.fit', import.meta.url).pathname;
 const authToken = jwt.sign(
-  { sub: 'test-user', email: 'test@example.com' },
+  { sub: 'test-user', email: 'test@example.com', role: 'USER' },
   process.env.JWT_SECRET ?? 'test-secret',
 );
 

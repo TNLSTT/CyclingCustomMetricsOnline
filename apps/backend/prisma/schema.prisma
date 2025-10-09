@@ -13,8 +13,15 @@ model User {
   passwordHash String
   provider     String?
   createdAt    DateTime   @default(now())
+  lastLoginAt  DateTime?  @default(now())
+  role         Role       @default(USER)
   activities   Activity[]
   profile      Profile?
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model Profile {

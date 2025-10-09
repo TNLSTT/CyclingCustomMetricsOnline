@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
-import { Command, Compass, LineChart, Map, UploadCloud } from 'lucide-react';
+import { Command, Compass, LineChart, Map, ShieldCheck, UploadCloud } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -14,7 +15,7 @@ interface CommandItem {
   icon: ComponentType<{ className?: string }>;
 }
 
-const COMMANDS: CommandItem[] = [
+const BASE_COMMANDS: CommandItem[] = [
   {
     title: 'Activities overview',
     description: 'Browse uploaded rides and computed metrics.',
@@ -42,18 +43,32 @@ const COMMANDS: CommandItem[] = [
 ];
 
 export function CommandPalette() {
+  const { data: session } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
 
+  const commands = useMemo(() => {
+    const base = [...BASE_COMMANDS];
+    if (session?.user?.role === 'ADMIN') {
+      base.push({
+        title: 'Admin dashboard',
+        description: 'Manage user accounts and permissions.',
+        href: '/admin/users',
+        icon: ShieldCheck,
+      });
+    }
+    return base;
+  }, [session?.user?.role]);
+
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
-      return COMMANDS;
+      return commands;
     }
-    return COMMANDS.filter((command) => fuzzyMatch(normalized, `${command.title} ${command.description}`));
-  }, [query]);
+    return commands.filter((command) => fuzzyMatch(normalized, `${command.title} ${command.description}`));
+  }, [commands, query]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const isMac = navigator.platform.toUpperCase().includes('MAC');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { signIn, signOut, useSession } from 'next-auth/react';
@@ -91,13 +91,24 @@ function AuthControls() {
 
 export function SiteHeader() {
   const pathname = useSafePathname();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  const navItems: NavItem[] =
-    status === 'authenticated'
-      ? [...baseNavItems, { href: '/profile', label: 'Profile', matchers: ['/profile'] }]
-      : baseNavItems;
+  const isAuthenticated = status === 'authenticated';
+  const isAdmin = session?.user?.role === 'ADMIN';
+
+  const navItems: NavItem[] = useMemo(() => {
+    if (!isAuthenticated) {
+      return baseNavItems;
+    }
+
+    const items = [...baseNavItems];
+    if (isAdmin) {
+      items.push({ href: '/admin/users', label: 'Admin', matchers: ['/admin'] });
+    }
+    items.push({ href: '/profile', label: 'Profile', matchers: ['/profile'] });
+    return items;
+  }, [isAdmin, isAuthenticated]);
 
   const closeDropdown = () => setOpenDropdown(null);
 
