@@ -2,6 +2,7 @@ import type { NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
 import { env } from './env';
+import type { UserRole } from '../types/admin';
 
 const demoEmail = process.env.DEMO_USER_EMAIL ?? 'demo@cyclingmetrics.dev';
 const demoPassword = process.env.DEMO_USER_PASSWORD ?? 'demo';
@@ -27,6 +28,7 @@ export const authOptions: NextAuthOptions = {
               id: 'demo-user',
               email: demoEmail,
               name: 'Demo Rider',
+              role: 'ADMIN' as UserRole,
               accessToken: 'demo-token',
             } as any;
           }
@@ -45,7 +47,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           const data = (await response.json()) as {
-            user: { id: string; email: string };
+            user: { id: string; email: string; role: UserRole };
             token: string;
           };
 
@@ -53,6 +55,7 @@ export const authOptions: NextAuthOptions = {
             id: data.user.id,
             email: data.user.email,
             name: data.user.email,
+            role: data.user.role,
             accessToken: data.token,
           } as any;
         } catch (error) {
@@ -68,7 +71,12 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const authUser = user as unknown as { accessToken?: string; email?: string; id: string };
+        const authUser = user as unknown as {
+          accessToken?: string;
+          email?: string;
+          id: string;
+          role?: UserRole;
+        };
         if (authUser.accessToken) {
           token.accessToken = authUser.accessToken;
         }
@@ -76,6 +84,9 @@ export const authOptions: NextAuthOptions = {
           token.email = authUser.email;
         }
         token.sub = authUser.id;
+        if (authUser.role) {
+          token.role = authUser.role;
+        }
       }
       return token;
     },
@@ -86,6 +97,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token?.sub) {
         (session.user as any).id = token.sub;
         session.user.email = (token.email as string | undefined) ?? session.user.email;
+        if (token.role) {
+          (session.user as any).role = token.role;
+        }
       }
       return session;
     },

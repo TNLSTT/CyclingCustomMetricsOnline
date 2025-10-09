@@ -17,6 +17,7 @@ import type { DurabilityAnalysisResponse } from '../types/durability-analysis';
 import type { DepthAnalysisResponse } from '../types/depth-analysis';
 import type { TrainingFrontiersResponse } from '../types/training-frontiers';
 import type { DurableTssFilters as DurableTssFiltersResponse, DurableTssResponse } from '../types/durable-tss';
+import type { AdminUserListResponse, AdminUserSummary, UserRole } from '../types/admin';
 
 async function apiFetch<T>(path: string, init?: RequestInit, authToken?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${env.apiUrl}${path}`;
@@ -205,7 +206,7 @@ export async function fetchMetricDefinitions(authToken?: string) {
 }
 
 export async function registerUserAccount(email: string, password: string) {
-  return apiFetch<{ user: { id: string; email: string }; token: string }>(
+  return apiFetch<{ user: AdminUserSummary; token: string }>(
     '/auth/register',
     {
       method: 'POST',
@@ -242,6 +243,46 @@ export async function updateProfile(
     {
       method: 'PUT',
       body: JSON.stringify(updates),
+    },
+    authToken,
+  );
+}
+
+export async function fetchAdminUsers(
+  params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  },
+  authToken?: string,
+  signal?: AbortSignal,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.page != null) {
+    searchParams.set('page', String(params.page));
+  }
+  if (params.pageSize != null) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+  if (params.search) {
+    searchParams.set('search', params.search);
+  }
+
+  const query = searchParams.toString();
+  const path = query.length > 0 ? `/admin/users?${query}` : '/admin/users';
+  return apiFetch<AdminUserListResponse>(
+    path,
+    { signal },
+    authToken,
+  );
+}
+
+export async function updateUserRole(userId: string, role: UserRole, authToken?: string) {
+  return apiFetch<AdminUserSummary>(
+    `/admin/users/${userId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
     },
     authToken,
   );

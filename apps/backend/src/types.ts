@@ -18,7 +18,10 @@ export interface NormalizedActivity {
   samples: NormalizedActivitySample[];
 }
 
+export type UserRole = 'USER' | 'ADMIN';
+
 export interface AuthenticatedUser {
   id: string;
   email?: string;
+  role: UserRole;
 }
