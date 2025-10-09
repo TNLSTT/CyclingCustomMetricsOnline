@@ -78,6 +78,20 @@ Authentication and per-user profiles are now enabled by default. To confirm the 
 - **Protected mode (default)** – with the variables above enabled, all new uploads and activity history are automatically scoped to the authenticated user via bearer tokens issued by the backend. API calls to `/upload`, `/activities`, `/profile`, and metric recomputation endpoints require an authenticated session.
 - **Open mode** – set `AUTH_ENABLED=false` and `NEXT_PUBLIC_AUTH_ENABLED=false` to skip authentication entirely. Uploads, metrics, and activities are shared across visitors which keeps local demos frictionless.
 
+#### Creating the first admin account
+
+The admin dashboard (Users → Admin) is protected behind the `ADMIN` role. To promote your first user:
+
+1. Register a normal account through `/register` and sign in once so the user exists in the database.
+2. Run the following Prisma command to update that user's role (replace the email with the account you just created):
+
+   ```bash
+   pnpm --filter backend prisma db execute -- --script "UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'you@example.com';"
+   ```
+
+   The command talks directly to the database defined by `DATABASE_URL` and flips the stored role to `ADMIN`.
+3. Sign out and sign back in so NextAuth issues a session + access token with the elevated role. You should now see the Admin dashboard link in the navigation.
+
 ### Database
 
 Push the Prisma schema to your Postgres instance and seed metric definitions:
