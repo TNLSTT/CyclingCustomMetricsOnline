@@ -287,3 +287,34 @@ export async function updateUserRole(userId: string, role: UserRole, authToken?:
     authToken,
   );
 }
+
+type ClientMetricEventType = 'feature_click' | 'export';
+
+export interface LogMetricEventInput {
+  type: ClientMetricEventType;
+  activityId?: string;
+  durationMs?: number;
+  success?: boolean;
+  meta?: Record<string, unknown> | Array<unknown> | string | number | boolean | null;
+}
+
+export async function logMetricEvent(input: LogMetricEventInput, authToken?: string) {
+  if (!authToken) {
+    return;
+  }
+
+  try {
+    await apiFetch<void>(
+      '/telemetry/metric-events',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      authToken,
+    );
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Failed to log metric event', error);
+    }
+  }
+}

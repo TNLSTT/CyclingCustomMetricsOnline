@@ -10,6 +10,14 @@ const credentialsSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+const registerSchema = credentialsSchema.extend({
+  utmSource: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+});
+
 export const authRouter = express.Router();
 
 authRouter.post(
@@ -20,9 +28,12 @@ authRouter.post(
       return;
     }
 
-    const { email, password } = credentialsSchema.parse(req.body);
+    const parsedBody = registerSchema.parse(req.body);
+    const fallbackSource =
+      typeof req.query.utm_source === 'string' ? req.query.utm_source : undefined;
+    const utmSource = parsedBody.utmSource ?? fallbackSource ?? req.header('x-utm-source') ?? undefined;
     try {
-      const result = await registerUser(email.toLowerCase(), password);
+      const result = await registerUser(parsedBody.email.toLowerCase(), parsedBody.password, utmSource);
       res.status(201).json(result);
     } catch (error) {
       res.status(400).json({ error: (error as Error).message });

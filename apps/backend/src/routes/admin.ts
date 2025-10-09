@@ -3,6 +3,8 @@ import asyncHandler from 'express-async-handler';
 import { z } from 'zod';
 
 import { prisma } from '../prisma.js';
+import { getAdminAnalyticsOverview } from '../services/adminAnalyticsService.js';
+import { cacheWithTtl } from '../services/telemetryService.js';
 import type { UserRole } from '../types.js';
 
 const listUsersSchema = z
@@ -79,6 +81,26 @@ adminRouter.get(
       pageSize: params.pageSize,
       total,
     });
+  }),
+);
+
+async function loadOverview() {
+  return cacheWithTtl('admin:analytics:overview', 60, () => getAdminAnalyticsOverview());
+}
+
+adminRouter.get(
+  '/analytics/overview',
+  asyncHandler(async (_req, res) => {
+    const overview = await loadOverview();
+    res.status(200).json(overview);
+  }),
+);
+
+adminRouter.get(
+  '/metrics.json',
+  asyncHandler(async (_req, res) => {
+    const overview = await loadOverview();
+    res.status(200).json(overview);
   }),
 );
 

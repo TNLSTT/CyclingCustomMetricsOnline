@@ -6,6 +6,7 @@ import {
   mergeProfileAnalytics,
   type ProfileMetricMetadata,
 } from '../services/profileAnalyticsService.js';
+import { recordMetricEvent, updateMetricComputationJob } from '../services/telemetryService.js';
 
 import type { MetricComputationResult, MetricModule, MetricSample } from './types.js';
 import { getMetricModule, metricRegistry } from './registry.js';
@@ -83,50 +84,87 @@ export async function runMetrics(activityId: string, metricKeys?: string[], user
   const metricSamples = mapSamples(samples);
   const results: Record<string, MetricComputationResult> = {};
   const metricMetadata: Record<string, ProfileMetricMetadata> = {};
+  const metricKeysResolved = modules.map((module) => module.definition.key);
 
-  for (const module of modules) {
-    const definition = await ensureDefinition(module);
-    metricMetadata[module.definition.key] = {
-      metricVersion: definition.version,
-      metricName: definition.name,
-      metricDescription: definition.description,
-      metricUnits: definition.units ?? null,
-    };
-    try {
-      const computation = await module.compute(metricSamples, { activity });
-      await prisma.metricResult.upsert({
-        where: {
-          activityId_metricDefinitionId: {
+  const jobId = await updateMetricComputationJob({
+    phase: 'enqueue',
+    activityId,
+    userId: activity.userId,
+    metricKeys: metricKeysResolved,
+  });
+
+  const start = Date.now();
+
+  let success = true;
+
+  try {
+    if (jobId) {
+      await updateMetricComputationJob({ phase: 'start', jobId });
+    }
+
+    for (const module of modules) {
+      const definition = await ensureDefinition(module);
+      metricMetadata[module.definition.key] = {
+        metricVersion: definition.version,
+        metricName: definition.name,
+        metricDescription: definition.description,
+        metricUnits: definition.units ?? null,
+      };
+      try {
+        const computation = await module.compute(metricSamples, { activity });
+        await prisma.metricResult.upsert({
+          where: {
+            activityId_metricDefinitionId: {
+              activityId,
+              metricDefinitionId: definition.id,
+            },
+          },
+          update: {
+            summary: normalizeSummaryJson(computation.summary),
+            series: normalizeNullableJson(computation.series ?? null),
+            computedAt: new Date(),
+          },
+          create: {
             activityId,
             metricDefinitionId: definition.id,
+            summary: normalizeSummaryJson(computation.summary),
+            series: normalizeNullableJson(computation.series ?? null),
           },
-        },
-      update: {
-          summary: normalizeSummaryJson(computation.summary),
-          series: normalizeNullableJson(computation.series ?? null),
-          computedAt: new Date(),
-        },
-        create: {
-          activityId,
-          metricDefinitionId: definition.id,
-          summary: normalizeSummaryJson(computation.summary),
-          series: normalizeNullableJson(computation.series ?? null),
-        },
-      });
-      results[module.definition.key] = computation;
-    } catch (error) {
-      logger.error({ error, metric: module.definition.key }, 'Metric computation failed');
-      results[module.definition.key] = {
-        summary: {
-          error: (error as Error).message,
-        },
-      };
+        });
+        results[module.definition.key] = computation;
+      } catch (error) {
+        success = false;
+        logger.error({ error, metric: module.definition.key }, 'Metric computation failed');
+        results[module.definition.key] = {
+          summary: {
+            error: (error as Error).message,
+          },
+        };
+      }
     }
-  }
 
-  if (activity.userId) {
-    const snapshots = buildMetricSnapshots(activity, metricMetadata, results);
-    await mergeProfileAnalytics(activity.userId, { metrics: snapshots });
+    if (activity.userId) {
+      const snapshots = buildMetricSnapshots(activity, metricMetadata, results);
+      await mergeProfileAnalytics(activity.userId, { metrics: snapshots });
+    }
+  } catch (error) {
+    success = false;
+    logger.error({ error }, 'Metric runner failed');
+    throw error;
+  } finally {
+    const duration = Date.now() - start;
+    await recordMetricEvent({
+      type: 'recompute',
+      userId: activity.userId,
+      activityId: activity.id,
+      durationMs: duration,
+      success,
+      meta: { metricKeys: metricKeysResolved },
+    });
+
+    if (jobId) {
+      await updateMetricComputationJob({ phase: 'complete', jobId, success, durationMs: duration });
+    }
   }
 
   return results;

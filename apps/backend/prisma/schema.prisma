@@ -12,11 +12,17 @@ model User {
   email        String     @unique
   passwordHash String
   provider     String?
+  utmSource    String?
   createdAt    DateTime   @default(now())
   lastLoginAt  DateTime?  @default(now())
   role         Role       @default(USER)
   activities   Activity[]
   profile      Profile?
+  pageViews    PageView[]
+  metricEvents MetricEvent[]
+  requestStats ApiRequestMetric[]
+  exceptionEvents ExceptionEvent[]
+  computationJobs MetricComputationJob[]
 }
 
 enum Role {
@@ -58,6 +64,8 @@ model Activity {
   createdAt     DateTime         @default(now())
   samples       ActivitySample[]
   metrics       MetricResult[]
+  metricEvents  MetricEvent[]
+  recomputeJobs MetricComputationJob[]
 
   @@unique([userId, startTime, durationSec])
 }
@@ -105,4 +113,81 @@ model MetricResult {
   @@index([activityId])
   @@index([metricDefinitionId, activityId])
   @@unique([activityId, metricDefinitionId])
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  path      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model MetricEvent {
+  id         String   @id @default(cuid())
+  type       String
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  activityId String?
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  durationMs Int?
+  success    Boolean?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, type, createdAt])
+  @@index([activityId, createdAt])
+}
+
+model ApiRequestMetric {
+  id                  String   @id @default(cuid())
+  method              String
+  path                String
+  statusCode          Int
+  durationMs          Int
+  queryCount          Int
+  avgQueryDurationMs  Float
+  timestamp           DateTime @default(now())
+  userId              String?
+  user                User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([path, timestamp])
+}
+
+model ExceptionEvent {
+  id         String   @id @default(cuid())
+  name       String
+  message    String
+  stack      String?
+  statusCode Int
+  path       String?
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([name, createdAt])
+}
+
+model MetricComputationJob {
+  id            String   @id @default(cuid())
+  activityId    String
+  activity      Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  metricKeys    String[]
+  status        String
+  enqueuedAt    DateTime @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  durationMs    Int?
+
+  @@index([status, enqueuedAt])
+  @@index([activityId, enqueuedAt])
+  @@index([userId, enqueuedAt])
 }

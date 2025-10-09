@@ -53,7 +53,11 @@ function signToken(user: { id: string; email: string; role: UserRole }) {
   );
 }
 
-export async function registerUser(email: string, password: string): Promise<AuthResult> {
+export async function registerUser(
+  email: string,
+  password: string,
+  utmSource?: string | null,
+): Promise<AuthResult> {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new Error('Email is already registered');
@@ -65,6 +69,7 @@ export async function registerUser(email: string, password: string): Promise<Aut
       email,
       passwordHash,
       provider: 'credentials',
+      utmSource: utmSource ?? null,
       role: 'USER',
       lastLoginAt: new Date(),
     },

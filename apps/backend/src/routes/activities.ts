@@ -8,6 +8,7 @@ import { prisma } from '../prisma.js';
 import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
+import { recordMetricEvent } from '../services/telemetryService.js';
 
 const paginationSchema = z
   .object({
@@ -113,6 +114,17 @@ activitiesRouter.get(
       prisma.activity.count({ where: userId ? { userId } : undefined }),
     ]);
 
+    await recordMetricEvent({
+      type: 'activities_list',
+      userId,
+      success: true,
+      meta: {
+        total,
+        page: params.page,
+        pageSize: params.pageSize,
+      },
+    });
+
     res.status(200).json({
       data: activities.map(mapActivity),
       page: params.page,
@@ -189,6 +201,13 @@ activitiesRouter.get(
       ...mapActivity(activity),
       previousActivityId: previousActivity?.id ?? null,
       nextActivityId: nextActivity?.id ?? null,
+    });
+
+    await recordMetricEvent({
+      type: 'activity_view',
+      userId,
+      activityId: activity.id,
+      success: true,
     });
   }),
 );
@@ -385,6 +404,14 @@ activitiesRouter.get(
       summary: metricResult.summary,
       series: metricResult.series,
       computedAt: metricResult.computedAt,
+    });
+
+    await recordMetricEvent({
+      type: 'metric_view',
+      userId,
+      activityId: metricResult.activityId,
+      success: true,
+      meta: { metricKey: req.params.metricKey },
     });
   }),
 );
