@@ -187,8 +187,11 @@ function computeDurableTssForActivity(
 
     if (ftpWatts && ftpWatts > 0 && segmentSamples.length > 0) {
       const powerSamples = extractPowerSamples(segmentSamples);
-      const windowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
-      const { normalizedPower } = computeNormalizedPower(powerSamples, windowSize);
+      const normalizedWindow = Math.max(
+        1,
+        Math.min(Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate), powerSamples.length),
+      );
+      const { normalizedPower } = computeNormalizedPower(powerSamples, normalizedWindow);
       if (normalizedPower != null && Number.isFinite(normalizedPower) && powerSamples.length > 0) {
         const intensityFactor = normalizedPower / ftpWatts;
         const durationHours = (segmentSamples.length * interval) / 3600;
