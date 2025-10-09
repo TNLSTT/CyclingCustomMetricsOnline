@@ -114,6 +114,10 @@ pnpm dev
 
 Upload a `.fit` file on the landing page, then navigate to Activities → Activity detail → “Recompute metrics” to generate the HCSR chart.
 
+#### Importing demo users and rides
+
+Need a pre-populated environment with an admin plus a few rider accounts? Create a JSON manifest and run the demo importer described in [`docs/demo-import.md`](docs/demo-import.md). The script provisions users, ingests the referenced FIT files, optionally copies them into `UPLOAD_DIR`, and precomputes metrics so the dashboard is immediately populated.
+
 ### Quality Gates
 
 ```bash

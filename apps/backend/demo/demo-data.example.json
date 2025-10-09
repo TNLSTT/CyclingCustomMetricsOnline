@@ -1,0 +1,66 @@
+{
+  "defaults": {
+    "computeMetrics": true,
+    "uploadCopy": true
+  },
+  "users": [
+    {
+      "email": "admin@example.com",
+      "password": "Password123!",
+      "role": "ADMIN",
+      "profile": {
+        "displayName": "Demo Admin",
+        "trainingFocus": "Team logistics and QA"
+      },
+      "activities": [
+        {
+          "label": "Admin - Baseline Loop",
+          "file": "fits/admin-baseline.fit"
+        }
+      ]
+    },
+    {
+      "email": "athlete.one@example.com",
+      "password": "Password123!",
+      "profile": {
+        "displayName": "Alex Rider",
+        "primaryDiscipline": "Road",
+        "weeklyGoalHours": 10
+      },
+      "activities": [
+        {
+          "label": "Alex - Endurance Ride",
+          "file": "fits/alex-endurance.fit"
+        },
+        {
+          "label": "Alex - VO2 Session",
+          "file": "fits/alex-vo2.fit",
+          "computeMetrics": true
+        }
+      ]
+    },
+    {
+      "email": "athlete.two@example.com",
+      "password": "Password123!",
+      "profile": {
+        "displayName": "Bailey Pace",
+        "primaryDiscipline": "Gravel"
+      },
+      "activities": [
+        {
+          "label": "Bailey - Gravel Grinder",
+          "file": "fits/bailey-gravel.fit"
+        }
+      ]
+    },
+    {
+      "email": "athlete.three@example.com",
+      "password": "Password123!",
+      "profile": {
+        "displayName": "Casey Watts",
+        "primaryDiscipline": "Track"
+      },
+      "activities": []
+    }
+  ]
+}
