@@ -17,6 +17,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().optional(),
   UPLOAD_DIR: z.string().default('./uploads'),
   FRONTEND_URL: z.string().optional(),
+  REDIS_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

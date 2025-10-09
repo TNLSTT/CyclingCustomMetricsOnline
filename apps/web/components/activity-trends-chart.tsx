@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Area,
@@ -23,6 +24,7 @@ import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { cn } from '../lib/utils';
+import { logMetricEvent } from '../lib/api';
 
 interface TrendPoint {
   bucket: string;
@@ -568,6 +570,7 @@ function ErrorState({ message }: { message: string }) {
 }
 
 export function ActivityTrendsChart({ initialMetricId, initialBucket }: ActivityTrendsChartProps) {
+  const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tz = resolveTimeZone();
@@ -729,21 +732,75 @@ export function ActivityTrendsChart({ initialMetricId, initialBucket }: Activity
     return index >= 0 ? index : 0;
   }, [chartData]);
 
+  const authToken = session?.accessToken;
+
   const handleExportCsv = useCallback(() => {
     if (!series) {
       return;
     }
     const filename = `${series.metric}-${series.bucket}-trend`;
+    if (authToken) {
+      void logMetricEvent(
+        {
+          type: 'feature_click',
+          meta: {
+            feature: 'Export',
+            format: 'csv',
+            metric: series.metric,
+            bucket: series.bucket,
+          },
+        },
+        authToken,
+      );
+      void logMetricEvent(
+        {
+          type: 'export',
+          success: true,
+          meta: {
+            format: 'csv',
+            metric: series.metric,
+            bucket: series.bucket,
+          },
+        },
+        authToken,
+      );
+    }
     exportCsv(series, movingAverages, filename);
-  }, [series, movingAverages]);
+  }, [authToken, movingAverages, series]);
 
   const handleExportPng = useCallback(() => {
     if (!series) {
       return;
     }
     const filename = `${series.metric}-${series.bucket}-trend`;
+    if (authToken) {
+      void logMetricEvent(
+        {
+          type: 'feature_click',
+          meta: {
+            feature: 'Export',
+            format: 'png',
+            metric: series.metric,
+            bucket: series.bucket,
+          },
+        },
+        authToken,
+      );
+      void logMetricEvent(
+        {
+          type: 'export',
+          success: true,
+          meta: {
+            format: 'png',
+            metric: series.metric,
+            bucket: series.bucket,
+          },
+        },
+        authToken,
+      );
+    }
     exportPng(containerRef.current, filename);
-  }, [series]);
+  }, [authToken, series]);
 
   if (error) {
     return <ErrorState message={error.message} />;

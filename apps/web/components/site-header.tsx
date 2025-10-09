@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import { signIn, signOut, useSession } from 'next-auth/react';
@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { useSafePathname } from '../hooks/use-safe-pathname';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
+import { logMetricEvent } from '../lib/api';
 
 const navInteraction = { duration: 0.18, ease: [0.33, 1, 0.68, 1] as [number, number, number, number] };
 
@@ -94,6 +95,25 @@ export function SiteHeader() {
   const { status, data: session } = useSession();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
+  const authToken = session?.accessToken;
+
+  const recordFeatureClick = useCallback(
+    (feature: string) => {
+      if (!authToken) {
+        return;
+      }
+
+      void logMetricEvent(
+        {
+          type: 'feature_click',
+          meta: { feature },
+        },
+        authToken,
+      );
+    },
+    [authToken],
+  );
+
   const isAuthenticated = status === 'authenticated';
   const isAdmin = session?.user?.role === 'ADMIN';
 
@@ -111,6 +131,26 @@ export function SiteHeader() {
   }, [isAdmin, isAuthenticated]);
 
   const closeDropdown = () => setOpenDropdown(null);
+
+  const featureByHref: Record<string, string> = useMemo(
+    () => ({
+      '/activities': 'Activities',
+      '/activities/trends': 'Trends',
+      '/admin/users': 'Admin',
+      '/admin/analytics': 'Admin',
+    }),
+    [],
+  );
+
+  const handleFeatureClick = useCallback(
+    (href: string) => {
+      const feature = featureByHref[href];
+      if (feature) {
+        recordFeatureClick(feature);
+      }
+    },
+    [featureByHref, recordFeatureClick],
+  );
 
   return (
     <header className="border-b">
@@ -142,6 +182,7 @@ export function SiteHeader() {
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                   aria-current={isActive ? 'page' : undefined}
+                  onClick={() => handleFeatureClick(item.href)}
                 >
                   <motion.span
                     className="relative flex items-center gap-1"
@@ -216,7 +257,10 @@ export function SiteHeader() {
                       key={child.href}
                       href={child.href}
                       className="block rounded-md px-3 py-2 text-left text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                      onClick={closeDropdown}
+                      onClick={() => {
+                        closeDropdown();
+                        handleFeatureClick(child.href);
+                      }}
                       role="menuitem"
                     >
                       <motion.span

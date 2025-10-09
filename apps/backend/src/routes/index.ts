@@ -12,6 +12,7 @@ import { durableTssRouter } from './durableTss.js';
 import { trainingFrontiersRouter } from './trainingFrontiers.js';
 import { trendsRouter } from './trends.js';
 import { adminRouter } from './admin.js';
+import { telemetryRouter } from './telemetry.js';
 
 export const apiRouter = express.Router();
 
@@ -25,3 +26,4 @@ apiRouter.use('/durable-tss', requireAuth, durableTssRouter);
 apiRouter.use('/training-frontiers', requireAuth, trainingFrontiersRouter);
 apiRouter.use('/trends', requireAuth, trendsRouter);
 apiRouter.use('/admin', requireAuth, requireAdmin, adminRouter);
+apiRouter.use('/telemetry', requireAuth, telemetryRouter);

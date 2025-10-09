@@ -7,6 +7,27 @@ import multer from 'multer';
 import { env } from '../env.js';
 import { logger } from '../logger.js';
 import { ingestFitFile } from '../services/ingestService.js';
+import { recordMetricEvent } from '../services/telemetryService.js';
+
+function classifyParseError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return 'unknown';
+  }
+  const message = error.message.toLowerCase();
+  if (message.includes('corrupt')) {
+    return 'fit_corrupt';
+  }
+  if (message.includes('timestamp')) {
+    return 'missing_timestamps';
+  }
+  if (message.includes('zero') && message.includes('length')) {
+    return 'zero_length';
+  }
+  if (message.includes('no samples')) {
+    return 'no_samples';
+  }
+  return 'unknown';
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -63,12 +84,36 @@ uploadRouter.post(
     for (const file of fitFiles) {
       const filePath = file.path;
       try {
+        const start = Date.now();
         const { activity } = await ingestFitFile(filePath, req.user?.id);
         uploads.push({ activityId: activity.id, fileName: file.originalname });
+        await recordMetricEvent({
+          type: 'upload',
+          userId: req.user?.id,
+          activityId: activity.id,
+          durationMs: Date.now() - start,
+          success: true,
+          meta: {
+            fileName: file.originalname,
+            size: file.size,
+          },
+        });
       } catch (error) {
         failures.push({
           fileName: file.originalname,
           error: error instanceof Error ? error.message : 'Failed to ingest FIT file.',
+        });
+        await recordMetricEvent({
+          type: 'upload',
+          userId: req.user?.id,
+          durationMs: null,
+          success: false,
+          meta: {
+            fileName: file.originalname,
+            size: file.size,
+            errorCode: classifyParseError(error),
+            message: error instanceof Error ? error.message : String(error),
+          },
         });
       } finally {
         try {
