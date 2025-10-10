@@ -647,14 +647,13 @@ export function ActivityTrendsChart({ initialMetricId, initialBucket }: Activity
   const chartData = useMemo(() => (series ? buildChartData(series.points) : []), [series]);
   const quantileData = useMemo(
     () =>
-      quantileBand.map((entry) => ({
-        date: entry.date.getTime(),
-        lower: entry.lower,
-        band:
-          entry.upper != null && entry.lower != null
-            ? Number((entry.upper - entry.lower).toFixed(2))
-            : null,
-      })),
+      quantileBand
+        .filter((entry) => entry.lower != null && entry.upper != null)
+        .map((entry) => ({
+          date: entry.date.getTime(),
+          lower: entry.lower!,
+          band: Number((entry.upper! - entry.lower!).toFixed(2)),
+        })),
     [quantileBand],
   );
 
