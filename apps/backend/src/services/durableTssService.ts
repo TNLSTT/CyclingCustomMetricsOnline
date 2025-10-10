@@ -187,10 +187,28 @@ function computeDurableTssForActivity(
 
     if (ftpWatts && ftpWatts > 0 && segmentSamples.length > 0) {
       const powerSamples = extractPowerSamples(segmentSamples);
-      const windowSize = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
+      const nominalWindow = Math.max(1, Math.round(NORMALIZED_WINDOW_SECONDS * sampleRate));
+      const windowSize =
+        powerSamples.length > 0 ? Math.min(nominalWindow, powerSamples.length) : nominalWindow;
       const { normalizedPower } = computeNormalizedPower(powerSamples, windowSize);
-      if (normalizedPower != null && Number.isFinite(normalizedPower) && powerSamples.length > 0) {
-        const intensityFactor = normalizedPower / ftpWatts;
+
+      let effectivePower =
+        normalizedPower != null && Number.isFinite(normalizedPower) ? normalizedPower : null;
+
+      if (effectivePower == null && segmentSamples.length > 0) {
+        const totalJoules = segmentSamples.reduce((sum, sample) => {
+          const powerValue =
+            typeof sample.power === 'number' && Number.isFinite(sample.power) ? sample.power : 0;
+          return sum + powerValue * interval;
+        }, 0);
+        const durationSec = segmentSamples.length * interval;
+        if (durationSec > 0) {
+          effectivePower = totalJoules / durationSec;
+        }
+      }
+
+      if (effectivePower != null && powerSamples.length > 0) {
+        const intensityFactor = effectivePower / ftpWatts;
         const durationHours = (segmentSamples.length * interval) / 3600;
         if (durationHours > 0) {
           const tss = intensityFactor * intensityFactor * durationHours * 100;
@@ -210,6 +228,10 @@ function computeDurableTssForActivity(
     durableTss,
   };
 }
+
+export const __test__ = {
+  computeDurableTssForActivity,
+};
 
 export async function getDurableTss(userId: string, filters: DurableTssFilters): Promise<DurableTssResponse> {
   const profile = await prisma.profile.findUnique({ where: { userId } });
