@@ -438,6 +438,8 @@ activitiesRouter.get(
       return;
     }
 
+    const userId = req.user?.id;
+
     const metricResult = await prisma.metricResult.findFirst({
       where: {
         activityId: req.params.id,
