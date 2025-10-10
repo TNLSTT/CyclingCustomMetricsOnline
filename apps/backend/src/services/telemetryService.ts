@@ -166,9 +166,20 @@ export async function recordExceptionEvent(input: ExceptionEventInput): Promise<
 }
 
 export async function updateMetricComputationJob(state: MetricComputationJobState): Promise<string | void> {
+  const metricComputationJob = (prisma as unknown as {
+    metricComputationJob?: {
+      create?: typeof prisma.metricComputationJob.create;
+      update?: typeof prisma.metricComputationJob.update;
+    };
+  }).metricComputationJob;
+
+  if (!metricComputationJob?.create || !metricComputationJob?.update) {
+    return;
+  }
+
   switch (state.phase) {
     case 'enqueue': {
-      const job = await prisma.metricComputationJob.create({
+      const job = await metricComputationJob.create({
         data: {
           activityId: state.activityId,
           userId: state.userId ?? null,
@@ -179,14 +190,14 @@ export async function updateMetricComputationJob(state: MetricComputationJobStat
       return job.id;
     }
     case 'start': {
-      await prisma.metricComputationJob.update({
+      await metricComputationJob.update({
         where: { id: state.jobId },
         data: { status: 'RUNNING', startedAt: new Date() },
       });
       return;
     }
     case 'complete': {
-      await prisma.metricComputationJob.update({
+      await metricComputationJob.update({
         where: { id: state.jobId },
         data: {
           status: state.success ? 'COMPLETED' : 'FAILED',
