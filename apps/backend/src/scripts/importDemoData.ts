@@ -84,7 +84,7 @@ type ProfileData = {
 };
 
 function resolveConfigPath(): { configPath: string; baseDir: string } {
-  const rawPath = process.argv[2] ?? 'apps/backend/demo/demo-data.json';
+  const rawPath = process.argv[2] ?? 'demo/demo-data.json';
   const configPath = path.resolve(process.cwd(), rawPath);
   const baseDir = path.dirname(configPath);
   return { configPath, baseDir };

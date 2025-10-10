@@ -32,7 +32,9 @@ From the repository root run:
 pnpm --filter backend import:demo [path/to/demo-data.json]
 ```
 
-- If you omit the path the script uses `apps/backend/demo/demo-data.json`.
+- If you omit the path the script looks for `demo/demo-data.json` relative to the
+  backend package (for example `apps/backend/demo/demo-data.json` when running
+  from the repo root).
 - By default each activity is parsed, stored, copied into `UPLOAD_DIR`, and the
   metric engine runs immediately so the dashboard is ready to explore.
 
