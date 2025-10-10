@@ -41,6 +41,11 @@ const achievementsChildren: NavChild[] = [
   { href: '/achievements#trophy-case', label: 'Trophy case' },
 ];
 
+const adminChildren: NavChild[] = [
+  { href: '/admin/analytics', label: 'Analytics dashboard' },
+  { href: '/admin/users', label: 'User management' },
+];
+
 const baseNavItems: NavItem[] = [
   { href: '/', label: 'Overview' },
   { href: '/activities', label: 'Activities' },
@@ -124,7 +129,12 @@ export function SiteHeader() {
 
     const items = [...baseNavItems];
     if (isAdmin) {
-      items.push({ href: '/admin/users', label: 'Admin', matchers: ['/admin'] });
+      items.push({
+        href: '/admin/analytics',
+        label: 'Admin',
+        matchers: ['/admin'],
+        children: adminChildren,
+      });
     }
     items.push({ href: '/profile', label: 'Profile', matchers: ['/profile'] });
     return items;
