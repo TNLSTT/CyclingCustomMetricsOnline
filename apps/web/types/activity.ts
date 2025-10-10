@@ -95,6 +95,13 @@ export interface ComputeMetricsResponse {
   results: Record<string, unknown>;
 }
 
+export interface BulkComputeResponse {
+  computed: string[];
+  failures: Array<{ activityId: string; error: string }>;
+  skipped: string[];
+  pendingCount: number;
+}
+
 export interface IntervalEfficiencyInterval {
   interval: number | null;
   avg_power: number | null;

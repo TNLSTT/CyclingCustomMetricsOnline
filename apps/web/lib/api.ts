@@ -2,6 +2,7 @@ import { env } from './env';
 import type {
   ActivitySummary,
   ComputeMetricsResponse,
+  BulkComputeResponse,
   MetricDefinition,
   MetricResultDetail,
   PaginatedActivities,
@@ -64,6 +65,16 @@ export async function fetchActivities(page = 1, pageSize = 10, authToken?: strin
 
 export async function fetchActivity(activityId: string, authToken?: string) {
   return apiFetch<ActivitySummary>(`/activities/${activityId}`, undefined, authToken);
+}
+
+export async function computeMetricsForAllActivities(authToken?: string) {
+  return apiFetch<BulkComputeResponse>(
+    '/activities/compute-all',
+    {
+      method: 'POST',
+    },
+    authToken,
+  );
 }
 
 export async function computeMetrics(activityId: string, metricKeys?: string[], authToken?: string) {

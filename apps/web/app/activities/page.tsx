@@ -7,6 +7,7 @@ import { ActivityQuickStats } from '../../components/activity-quick-stats';
 import { ActivityTable } from '../../components/activity-table';
 import { PageHeader } from '../../components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { ActivityActions } from '../../components/activity-actions';
 
 async function getActivities(token?: string): Promise<PaginatedActivities> {
   const headers: HeadersInit | undefined = token
@@ -49,6 +50,7 @@ export default async function ActivitiesPage() {
           title="Activities"
           description="Recently uploaded FIT rides with computed metric summaries. Use the filters below to hone in on pending rides, specific metrics, or sources."
         />
+        <ActivityActions />
         <ActivityQuickStats
           totalActivities={totalActivities}
           totalDurationHours={totalDurationSec / 3600}
@@ -68,6 +70,7 @@ export default async function ActivitiesPage() {
           title="Activities"
           description="Recently uploaded FIT rides with computed metric summaries. Use the filters below to hone in on pending rides, specific metrics, or sources."
         />
+        <ActivityActions />
         <Alert variant="destructive">
           <AlertTitle>Unable to load activities</AlertTitle>
           <AlertDescription>

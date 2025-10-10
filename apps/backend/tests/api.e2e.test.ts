@@ -163,4 +163,43 @@ describe('Activities API flow', () => {
 
     expect(unlinkSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('computes metrics for all pending activities in bulk', async () => {
+    const uploadResponse = await request(app)
+      .post('/api/upload')
+      .set('Authorization', `Bearer ${authToken}`)
+      .attach('files', fixturePath);
+
+    expect(uploadResponse.status).toBe(201);
+    const activityId = uploadResponse.body.uploads[0]?.activityId;
+    expect(activityId).toBeDefined();
+
+    const bulkResponse = await request(app)
+      .post('/api/activities/compute-all')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send();
+
+    expect(bulkResponse.status).toBe(200);
+    expect(Array.isArray(bulkResponse.body.computed)).toBe(true);
+    expect(bulkResponse.body.computed).toContain(activityId);
+    expect(Array.isArray(bulkResponse.body.failures)).toBe(true);
+    expect(bulkResponse.body.failures).toHaveLength(0);
+    expect(Array.isArray(bulkResponse.body.skipped)).toBe(true);
+
+    const detailResponse = await request(app)
+      .get(`/api/activities/${activityId}`)
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(detailResponse.status).toBe(200);
+    expect(detailResponse.body.metrics.length).toBeGreaterThan(0);
+
+    const secondRunResponse = await request(app)
+      .post('/api/activities/compute-all')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send();
+
+    expect(secondRunResponse.status).toBe(200);
+    expect(secondRunResponse.body.computed).toHaveLength(0);
+    expect(secondRunResponse.body.failures).toHaveLength(0);
+    expect(secondRunResponse.body.skipped).toContain(activityId);
+  });
 });
