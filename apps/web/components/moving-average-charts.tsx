@@ -14,6 +14,7 @@ import {
 
 import type { MovingAverageDay, PeakPowerDurationKey } from '../types/moving-averages';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { ChartPlaceholder } from './ui/chart-placeholder';
 
 const DAILY_KJ_WINDOWS = [
   { windowDays: 45, label: '45-day' },
@@ -208,12 +209,26 @@ export function MovingAverageCharts({ days }: MovingAverageChartsProps) {
     [],
   );
 
-  if (sortedDays.length === 0) {
-    return null;
-  }
-
   const timeframeLabel =
     TIMEFRAME_OPTIONS.find((option) => option.value === selectedTimeframe)?.label ?? 'Full history';
+
+  const availableKjWindows = useMemo(
+    () =>
+      DAILY_KJ_WINDOWS.filter((window) =>
+        kjChartData.some((datum) => datum[`kj_${window.windowDays}`] != null),
+      ),
+    [kjChartData],
+  );
+
+  const availablePowerDurations = useMemo(
+    () =>
+      POWER_DURATIONS.filter((duration) =>
+        powerChartData.some((datum) => datum[`power_${duration.key}`] != null),
+      ),
+    [powerChartData],
+  );
+
+  const hasRideHistory = sortedDays.length > 0;
 
   return (
     <div className="space-y-6">
@@ -257,36 +272,51 @@ export function MovingAverageCharts({ days }: MovingAverageChartsProps) {
           </div>
         </CardHeader>
         <CardContent className="h-[360px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={kjChartData} margin={{ left: 12, right: 16, top: 12, bottom: 12 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(value) => shortDateFormatter.format(new Date(value))}
-                type="number"
-                domain={['auto', 'auto']}
-                tickMargin={8}
-              />
-              <YAxis tickFormatter={(value) => axisNumberFormatter.format(Number(value))} width={80} />
-              <Tooltip
-                labelFormatter={(value) => fullDateFormatter.format(new Date(value))}
-                formatter={(value) => [formatTooltipValue(value, 'kJ'), 'Average']}
-              />
-              <Legend />
-              {DAILY_KJ_WINDOWS.map((window, index) => (
-                <Line
-                  key={window.windowDays}
-                  type="monotone"
-                  dataKey={`kj_${window.windowDays}`}
-                  stroke={KJ_COLORS[index % KJ_COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                  name={`${window.label} average`}
-                  isAnimationActive={false}
+          {availableKjWindows.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={kjChartData} margin={{ left: 12, right: 16, top: 12, bottom: 12 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => shortDateFormatter.format(new Date(value))}
+                  type="number"
+                  domain={['auto', 'auto']}
+                  tickMargin={8}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis tickFormatter={(value) => axisNumberFormatter.format(Number(value))} width={80} />
+                <Tooltip
+                  labelFormatter={(value) => fullDateFormatter.format(new Date(value))}
+                  formatter={(value) => [formatTooltipValue(value, 'kJ'), 'Average']}
+                />
+                <Legend />
+                {availableKjWindows.map((window, index) => (
+                  <Line
+                    key={window.windowDays}
+                    type="monotone"
+                    dataKey={`kj_${window.windowDays}`}
+                    stroke={KJ_COLORS[index % KJ_COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    name={`${window.label} average`}
+                    isAnimationActive={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartPlaceholder
+              message={
+                hasRideHistory
+                  ? 'Not enough data to calculate your rolling energy trends yet.'
+                  : 'Upload rides to start tracking your energy moving averages.'
+              }
+              helperText={
+                hasRideHistory
+                  ? 'Widen the timeframe or keep adding activities to populate this view.'
+                  : 'Import your past activities or sync a ride to unlock these insights.'
+              }
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -302,36 +332,51 @@ export function MovingAverageCharts({ days }: MovingAverageChartsProps) {
           </p>
         </CardHeader>
         <CardContent className="h-[360px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={powerChartData} margin={{ left: 12, right: 16, top: 12, bottom: 12 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(value) => shortDateFormatter.format(new Date(value))}
-                type="number"
-                domain={['auto', 'auto']}
-                tickMargin={8}
-              />
-              <YAxis tickFormatter={(value) => axisNumberFormatter.format(Number(value))} width={80} />
-              <Tooltip
-                labelFormatter={(value) => fullDateFormatter.format(new Date(value))}
-                formatter={(value) => [formatTooltipValue(value, 'W'), 'Average peak']}
-              />
-              <Legend />
-              {POWER_DURATIONS.map((duration, index) => (
-                <Line
-                  key={duration.key}
-                  type="monotone"
-                  dataKey={`power_${duration.key}`}
-                  stroke={POWER_COLORS[index % POWER_COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                  name={`${duration.label} (45-day)`}
-                  isAnimationActive={false}
+          {availablePowerDurations.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={powerChartData} margin={{ left: 12, right: 16, top: 12, bottom: 12 }}>
+                <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => shortDateFormatter.format(new Date(value))}
+                  type="number"
+                  domain={['auto', 'auto']}
+                  tickMargin={8}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis tickFormatter={(value) => axisNumberFormatter.format(Number(value))} width={80} />
+                <Tooltip
+                  labelFormatter={(value) => fullDateFormatter.format(new Date(value))}
+                  formatter={(value) => [formatTooltipValue(value, 'W'), 'Average peak']}
+                />
+                <Legend />
+                {availablePowerDurations.map((duration, index) => (
+                  <Line
+                    key={duration.key}
+                    type="monotone"
+                    dataKey={`power_${duration.key}`}
+                    stroke={POWER_COLORS[index % POWER_COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    name={`${duration.label} (45-day)`}
+                    isAnimationActive={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <ChartPlaceholder
+              message={
+                hasRideHistory
+                  ? 'We need more best-effort data to chart these moving averages.'
+                  : 'Upload rides to unlock peak power moving averages.'
+              }
+              helperText={
+                hasRideHistory
+                  ? 'Try expanding the window or continue chasing personal bests to see these lines.'
+                  : 'Bring in historical rides with power data to populate this chart.'
+              }
+            />
+          )}
         </CardContent>
       </Card>
     </div>
