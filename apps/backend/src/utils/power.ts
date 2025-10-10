@@ -34,21 +34,28 @@ export function computeRollingAverages(
   }
 
   const rolling: Array<{ t: number; rollingAvg: number }> = [];
-  const window: number[] = [];
+  const window = new Array<number>(windowSize);
+  let filled = 0;
+  let startIndex = 0;
   let sum = 0;
 
   for (const sample of samples) {
-    window.push(sample.power);
-    sum += sample.power;
+    const value = sample.power;
 
-    if (window.length > windowSize) {
-      const removed = window.shift();
-      if (removed != null) {
-        sum -= removed;
-      }
+    if (filled < windowSize) {
+      const insertIndex = (startIndex + filled) % windowSize;
+      window[insertIndex] = value;
+      filled += 1;
+      sum += value;
+    } else {
+      const oldest = window[startIndex]!;
+      sum -= oldest;
+      window[startIndex] = value;
+      sum += value;
+      startIndex = (startIndex + 1) % windowSize;
     }
 
-    if (window.length === windowSize) {
+    if (filled === windowSize) {
       rolling.push({ t: sample.t, rollingAvg: sum / windowSize });
     }
   }
