@@ -326,6 +326,60 @@ activitiesRouter.get(
 );
 
 activitiesRouter.post(
+  '/compute-all',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user?.id;
+    const activities = await prisma.activity.findMany({
+      where: userId ? { userId } : undefined,
+      orderBy: { startTime: 'asc' },
+      include: { metrics: true },
+    });
+
+    const pending = activities.filter((activity) => (activity.metrics?.length ?? 0) === 0);
+    const skipped = activities
+      .filter((activity) => (activity.metrics?.length ?? 0) > 0)
+      .map((activity) => activity.id);
+
+    const computed: string[] = [];
+    const failures: Array<{ activityId: string; error: string }> = [];
+
+    for (const activity of pending) {
+      try {
+        await runMetrics(activity.id, undefined, userId);
+        computed.push(activity.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to compute metrics';
+        failures.push({ activityId: activity.id, error: message });
+      }
+    }
+
+    await recordMetricEvent({
+      type: 'activities_bulk_compute',
+      userId,
+      success: failures.length === 0,
+      metadata: {
+        attempted: pending.length,
+        computed: computed.length,
+        failures: failures.length,
+        skipped: skipped.length,
+      },
+    });
+
+    res.status(200).json({
+      computed,
+      failures,
+      skipped,
+      pendingCount: pending.length,
+    });
+  }),
+);
+
+activitiesRouter.post(
   '/:id/compute',
   asyncHandler(async (req, res) => {
     if (env.AUTH_ENABLED && !req.user?.id) {
