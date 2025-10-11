@@ -20,6 +20,10 @@ export interface ActivitySummary {
   averageCadence?: number | null;
   previousActivityId?: string | null;
   nextActivityId?: string | null;
+  insightReport?: ActivityInsightReport | null;
+  insightReportGeneratedAt?: string | null;
+  insightRecommendation?: ActivityInsightRecommendation | null;
+  insightRecommendationGeneratedAt?: string | null;
 }
 
 export type NumericLike = number | string;
@@ -49,6 +53,45 @@ export interface PowerStreamSample {
 
 export interface PowerStreamResponse {
   samples: PowerStreamSample[];
+}
+
+export interface ActivityInsightMetricHighlight {
+  label: string;
+  value: string;
+  insight: string;
+}
+
+export interface ActivityInsightReport {
+  overview: string;
+  goalProgress: string;
+  goalAlignment: string;
+  keyMetrics: ActivityInsightMetricHighlight[];
+  actionItems: string[];
+}
+
+export interface ActivityInsightRecommendation {
+  recommendation: string;
+  focus: string;
+  sessionOutline: {
+    title: string;
+    durationHours?: number | null;
+    intensity: string;
+    steps: string[];
+  };
+  rationale: string;
+  reminders: string[];
+}
+
+export interface ActivityInsightResponse {
+  activityId: string;
+  report: ActivityInsightReport;
+  generatedAt: string;
+}
+
+export interface ActivityRecommendationResponse {
+  activityId: string;
+  recommendation: ActivityInsightRecommendation;
+  generatedAt: string;
 }
 
 export interface PaginatedActivities {
