@@ -9,6 +9,12 @@ import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 import { recordMetricEvent } from '../services/telemetryService.js';
+import {
+  ActivityInsightNotFoundError,
+  MissingOpenAiKeyError,
+  generateActivityInsightReport,
+  generateActivityRecommendation,
+} from '../services/activityInsightService.js';
 
 const paginationSchema = z
   .object({
@@ -50,6 +56,10 @@ function mapActivity(activity: ActivityWithMetrics) {
     averagePower: activity.averagePower,
     averageHeartRate: activity.averageHeartRate,
     averageCadence: activity.averageCadence,
+    insightReport: activity.insightReport ?? null,
+    insightReportGeneratedAt: activity.insightReportGeneratedAt,
+    insightRecommendation: activity.insightRecommendation ?? null,
+    insightRecommendationGeneratedAt: activity.insightRecommendationGeneratedAt,
     metrics: (activity.metrics ?? []).map((metric: any) => ({
       key: metric.metricDefinition.key,
       summary: metric.summary,
@@ -392,6 +402,78 @@ activitiesRouter.post(
 
     const results = await runMetrics(req.params.id, metricKeys ?? undefined, req.user?.id);
     res.status(200).json({ activityId: req.params.id, results });
+  }),
+);
+
+activitiesRouter.post(
+  '/:id/insights/report',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const result = await generateActivityInsightReport(req.params.id, req.user?.id);
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof ActivityInsightNotFoundError) {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+
+      if (error instanceof MissingOpenAiKeyError) {
+        res.status(503).json({ error: error.message });
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'Failed to generate insight report';
+      await recordMetricEvent({
+        type: 'activity_insight_report',
+        userId: req.user?.id,
+        activityId: req.params.id,
+        success: false,
+        meta: { error: message },
+      });
+
+      res.status(500).json({ error: message });
+    }
+  }),
+);
+
+activitiesRouter.post(
+  '/:id/insights/recommendation',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const result = await generateActivityRecommendation(req.params.id, req.user?.id);
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof ActivityInsightNotFoundError) {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+
+      if (error instanceof MissingOpenAiKeyError) {
+        res.status(503).json({ error: error.message });
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'Failed to generate recommendation';
+      await recordMetricEvent({
+        type: 'activity_insight_recommendation',
+        userId: req.user?.id,
+        activityId: req.params.id,
+        success: false,
+        meta: { error: message },
+      });
+
+      res.status(500).json({ error: message });
+    }
   }),
 );
 

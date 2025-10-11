@@ -9,6 +9,8 @@ import {
   fetchActivityTrack,
   fetchIntervalEfficiency,
   fetchMetricResult,
+  requestActivityInsightReport,
+  requestActivityRecommendation,
 } from '../lib/api';
 import { formatDuration } from '../lib/utils';
 import type {
@@ -17,6 +19,8 @@ import type {
   MetricResultDetail,
   ActivityTrackPoint,
   ActivityTrackBounds,
+  ActivityInsightReport,
+  ActivityInsightRecommendation,
 } from '../types/activity';
 import { ActivitySummaryHero } from './activity-summary-hero';
 import { HcsrChart } from './hcsr-chart';
@@ -29,6 +33,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { RideTrackMap } from './ride-track-map';
 import { RideComparisonOverlay } from './ride-comparison-overlay';
+import { Badge } from './ui/badge';
 
 interface ActivityDetailClientProps {
   activity: ActivitySummary;
@@ -116,6 +121,100 @@ type WhrSeriesPoint = {
   validSampleCount: number | null;
   percentiles: Record<string, number | null>;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function parseInsightReport(value: unknown): ActivityInsightReport | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const keyMetricsRaw = Array.isArray(value.keyMetrics) ? value.keyMetrics : [];
+  const keyMetrics = keyMetricsRaw
+    .map((entry) => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const label = typeof entry.label === 'string' ? entry.label : null;
+      const metricValue = typeof entry.value === 'string' ? entry.value : null;
+      const insight = typeof entry.insight === 'string' ? entry.insight : null;
+      if (!label || !metricValue || !insight) {
+        return null;
+      }
+      return { label, value: metricValue, insight } satisfies ActivityInsightReport['keyMetrics'][number];
+    })
+    .filter((entry): entry is ActivityInsightReport['keyMetrics'][number] => entry !== null);
+
+  const actionItemsRaw = Array.isArray(value.actionItems) ? value.actionItems : [];
+  const actionItems = actionItemsRaw
+    .map((entry) => (typeof entry === 'string' ? entry : null))
+    .filter((entry): entry is string => Boolean(entry));
+
+  const overview = typeof value.overview === 'string' ? value.overview : null;
+  const goalProgress = typeof value.goalProgress === 'string' ? value.goalProgress : null;
+  const goalAlignment = typeof value.goalAlignment === 'string' ? value.goalAlignment : null;
+
+  if (!overview || !goalProgress || !goalAlignment || keyMetrics.length === 0 || actionItems.length === 0) {
+    return null;
+  }
+
+  return {
+    overview,
+    goalProgress,
+    goalAlignment,
+    keyMetrics,
+    actionItems,
+  } satisfies ActivityInsightReport;
+}
+
+function parseInsightRecommendation(value: unknown): ActivityInsightRecommendation | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const sessionOutline = isRecord(value.sessionOutline) ? value.sessionOutline : null;
+  const stepsRaw = Array.isArray(sessionOutline?.steps) ? sessionOutline?.steps : [];
+  const steps = stepsRaw
+    .map((entry) => (typeof entry === 'string' ? entry : null))
+    .filter((entry): entry is string => Boolean(entry));
+
+  const outlineTitle = typeof sessionOutline?.title === 'string' ? sessionOutline.title : null;
+  const outlineIntensity = typeof sessionOutline?.intensity === 'string' ? sessionOutline.intensity : null;
+  const outlineDuration =
+    typeof sessionOutline?.durationHours === 'number'
+      ? sessionOutline.durationHours
+      : sessionOutline?.durationHours === null
+        ? null
+        : undefined;
+
+  const recommendation = typeof value.recommendation === 'string' ? value.recommendation : null;
+  const focus = typeof value.focus === 'string' ? value.focus : null;
+  const rationale = typeof value.rationale === 'string' ? value.rationale : null;
+
+  const remindersRaw = Array.isArray(value.reminders) ? value.reminders : [];
+  const reminders = remindersRaw
+    .map((entry) => (typeof entry === 'string' ? entry : null))
+    .filter((entry): entry is string => Boolean(entry));
+
+  if (!recommendation || !focus || !outlineTitle || !outlineIntensity || steps.length === 0 || !rationale) {
+    return null;
+  }
+
+  return {
+    recommendation,
+    focus,
+    sessionOutline: {
+      title: outlineTitle,
+      intensity: outlineIntensity,
+      durationHours: outlineDuration ?? null,
+      steps,
+    },
+    rationale,
+    reminders,
+  } satisfies ActivityInsightRecommendation;
+}
 
 function parseHcsrSummary(metric: MetricResultDetail | null | undefined): HcsrSummary {
   if (!metric) {
@@ -296,6 +395,23 @@ export function ActivityDetailClient({
   initialWhrEfficiency,
 }: ActivityDetailClientProps) {
   const { data: session } = useSession();
+  const initialInsightReport = parseInsightReport(activity.insightReport ?? null);
+  const initialRecommendation = parseInsightRecommendation(activity.insightRecommendation ?? null);
+  const [insightReport, setInsightReport] = useState<ActivityInsightReport | null>(
+    initialInsightReport,
+  );
+  const [insightReportGeneratedAt, setInsightReportGeneratedAt] = useState<string | null>(
+    activity.insightReportGeneratedAt ?? null,
+  );
+  const [insightRecommendation, setInsightRecommendation] =
+    useState<ActivityInsightRecommendation | null>(initialRecommendation);
+  const [insightRecommendationGeneratedAt, setInsightRecommendationGeneratedAt] = useState<
+    string | null
+  >(activity.insightRecommendationGeneratedAt ?? null);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [isInsightPending, startInsightTransition] = useTransition();
+  const [isRecommendationPending, startRecommendationTransition] = useTransition();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [metric, setMetric] = useState<MetricResultDetail | null | undefined>(initialHcsr);
@@ -349,6 +465,49 @@ export function ActivityDetailClient({
       return 'Not available';
     }
     return suffix ? `${value} ${suffix}` : value;
+  };
+
+  const formatGeneratedAt = (value: string | null) => {
+    if (!value) {
+      return 'Not generated yet';
+    }
+    const timestamp = new Date(value);
+    if (Number.isNaN(timestamp.getTime())) {
+      return 'Not generated yet';
+    }
+    return timestamp.toLocaleString();
+  };
+
+  const handleGenerateInsightReport = () => {
+    setInsightError(null);
+    startInsightTransition(async () => {
+      try {
+        const response = await requestActivityInsightReport(activity.id, session?.accessToken);
+        setInsightReport(response.report);
+        setInsightReportGeneratedAt(response.generatedAt);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Unable to generate an insight report right now.';
+        setInsightError(message);
+      }
+    });
+  };
+
+  const handleGenerateRecommendation = () => {
+    setRecommendationError(null);
+    startRecommendationTransition(async () => {
+      try {
+        const response = await requestActivityRecommendation(activity.id, session?.accessToken);
+        setInsightRecommendation(response.recommendation);
+        setInsightRecommendationGeneratedAt(response.generatedAt);
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Unable to request a recommendation right now.';
+        setRecommendationError(message);
+      }
+    });
   };
 
   const slopeDisplay = hcsrSummary.slope != null ? hcsrSummary.slope.toFixed(3) : '—';
@@ -613,6 +772,164 @@ export function ActivityDetailClient({
         previousActivityId={activity.previousActivityId ?? null}
         nextActivityId={activity.nextActivityId ?? null}
       />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex flex-col gap-1 text-lg">
+              <span>Insight report</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {formatGeneratedAt(insightReportGeneratedAt)}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              onClick={handleGenerateInsightReport}
+              disabled={isInsightPending}
+              className="w-full gap-2"
+            >
+              {isInsightPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Generating…</span>
+                </>
+              ) : (
+                <span>{insightReport ? 'Refresh insight report' : 'Generate insight report'}</span>
+              )}
+            </Button>
+            {insightError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Insight generation failed</AlertTitle>
+                <AlertDescription>{insightError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {insightReport ? (
+              <div className="space-y-4 text-sm leading-relaxed">
+                <p className="text-muted-foreground">{insightReport.overview}</p>
+                <div className="space-y-2 rounded-lg border bg-muted/40 p-4">
+                  <h4 className="text-sm font-semibold">Goal progress</h4>
+                  <p className="text-sm text-muted-foreground">{insightReport.goalProgress}</p>
+                </div>
+                <div className="space-y-2 rounded-lg border bg-muted/40 p-4">
+                  <h4 className="text-sm font-semibold">Goal alignment</h4>
+                  <p className="text-sm text-muted-foreground">{insightReport.goalAlignment}</p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Key metrics</h4>
+                  <ul className="space-y-2">
+                    {insightReport.keyMetrics.map((metricEntry) => (
+                      <li key={metricEntry.label} className="rounded-lg border bg-background p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{metricEntry.label}</span>
+                          <span className="text-sm text-muted-foreground">{metricEntry.value}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{metricEntry.insight}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Action items</h4>
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                    {insightReport.actionItems.map((item, index) => (
+                      <li key={`${item}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Generate a tailored summary to see how this ride advanced your long-term goals.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex flex-col gap-1 text-lg">
+              <span>Tomorrow&apos;s recommendation</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {formatGeneratedAt(insightRecommendationGeneratedAt)}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              onClick={handleGenerateRecommendation}
+              disabled={isRecommendationPending}
+              className="w-full gap-2"
+              variant="secondary"
+            >
+              {isRecommendationPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Thinking…</span>
+                </>
+              ) : (
+                <span>
+                  {insightRecommendation ? 'Refresh tomorrow\'s plan' : "What\'s recommended for tomorrow?"}
+                </span>
+              )}
+            </Button>
+            {recommendationError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Recommendation failed</AlertTitle>
+                <AlertDescription>{recommendationError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {insightRecommendation ? (
+              <div className="space-y-4 text-sm leading-relaxed">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">Focus</span>
+                  <Badge variant="secondary" className="text-xs uppercase tracking-wide">
+                    {insightRecommendation.focus}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{insightRecommendation.recommendation}</p>
+                <div className="space-y-2 rounded-lg border bg-muted/40 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold">
+                      {insightRecommendation.sessionOutline.title}
+                    </h4>
+                    {typeof insightRecommendation.sessionOutline.durationHours === 'number' &&
+                    Number.isFinite(insightRecommendation.sessionOutline.durationHours) ? (
+                      <span className="text-xs text-muted-foreground">
+                        ~{insightRecommendation.sessionOutline.durationHours.toFixed(1)}h
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {insightRecommendation.sessionOutline.intensity}
+                  </p>
+                  <ul className="list-decimal space-y-1 pl-4 text-sm text-muted-foreground">
+                    {insightRecommendation.sessionOutline.steps.map((step, index) => (
+                      <li key={`${step}-${index}`}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-2 rounded-lg border bg-muted/40 p-4">
+                  <h4 className="text-sm font-semibold">Rationale</h4>
+                  <p className="text-sm text-muted-foreground">{insightRecommendation.rationale}</p>
+                </div>
+                {insightRecommendation.reminders.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Reminders</h4>
+                    <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                      {insightRecommendation.reminders.map((reminder, index) => (
+                        <li key={`${reminder}-${index}`}>{reminder}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Ask for a personalised next-day focus to keep momentum toward your targets.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="max-w-xl text-sm text-muted-foreground">
           <p>

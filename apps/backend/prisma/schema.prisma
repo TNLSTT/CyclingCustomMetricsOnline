@@ -66,6 +66,16 @@ model Activity {
   durationSec   Int
   sampleRateHz  Float?
   createdAt     DateTime         @default(now())
+  name          String?
+  distanceMeters        Float?
+  totalElevationGain    Float?
+  averagePower          Float?
+  averageHeartRate      Float?
+  averageCadence        Float?
+  insightReport                 Json?
+  insightReportGeneratedAt      DateTime?
+  insightRecommendation         Json?
+  insightRecommendationGeneratedAt DateTime?
   samples       ActivitySample[]
   metrics       MetricResult[]
   metricEvents  MetricEvent[]

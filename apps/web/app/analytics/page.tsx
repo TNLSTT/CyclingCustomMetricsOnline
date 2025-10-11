@@ -1,3 +1,4 @@
+import React from 'react';
 import Link from 'next/link';
 
 import { PageHeader } from '../../components/page-header';
@@ -11,6 +12,13 @@ const analyticsTools = [
       'Track changes in ride duration, training load, and computed metrics across your entire history.',
     href: '/activities/trends',
     action: 'Open trends',
+  },
+  {
+    title: 'Insight reports',
+    description:
+      'Generate AI summaries for any ride and capture tomorrow\'s recommendation tailored to your goals.',
+    href: '/analytics/insight-report',
+    action: 'Generate Insight Report',
   },
   {
     title: 'Moving averages',

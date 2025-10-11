@@ -56,6 +56,8 @@ Key variables to review before running locally:
 - `NEXT_PUBLIC_API_URL` – frontend-to-backend base URL (`http://localhost:4000/api` in dev).
 - `NEXT_INTERNAL_API_URL` – internal API URL for server-side Next.js fetching (e.g. `http://backend:4000/api` in Docker).
 - `NEXTAUTH_SECRET`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD` – NextAuth credentials (optional).
+- `OPENAI_API_KEY` – server-side key used by the backend to generate activity insight reports and recommendations.
+- `OPENAI_API_MODEL` – optional OpenAI chat model override (defaults to `gpt-4o-mini`).
 
 ### Authentication
 
