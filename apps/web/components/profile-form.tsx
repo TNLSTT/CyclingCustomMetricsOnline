@@ -261,6 +261,20 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     [],
   );
 
+  const formatAssessmentDate = useCallback(
+    (value: string | null | undefined) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return null;
+      }
+      return previewDateFormatter.format(parsed);
+    },
+    [previewDateFormatter],
+  );
+
   const numberFormatters = useMemo(
     () => ({
       oneDecimal: new Intl.NumberFormat('en', { maximumFractionDigits: 1 }),
@@ -319,20 +333,6 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     }
     return pieces.join(' • ');
   }
-
-  const formatAssessmentDate = useCallback(
-    (value: string | null | undefined) => {
-      if (!value) {
-        return null;
-      }
-      const parsed = new Date(value);
-      if (Number.isNaN(parsed.getTime())) {
-        return null;
-      }
-      return previewDateFormatter.format(parsed);
-    },
-    [previewDateFormatter],
-  );
 
   function buildTargetPayload(entries: TargetFormEntry[], context: 'event' | 'goal'): ProfileTarget[] {
     const label = context === 'event' ? 'Event' : 'Goal';
