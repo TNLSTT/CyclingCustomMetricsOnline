@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { updateProfile } from '../lib/api';
 import type { Profile, ProfileTarget } from '../types/profile';
@@ -162,6 +162,18 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
   const [websiteUrl, setWebsiteUrl] = useState(profile?.websiteUrl ?? '');
   const [instagramHandle, setInstagramHandle] = useState(profile?.instagramHandle ?? '');
   const [achievements, setAchievements] = useState(profile?.achievements ?? '');
+  const [goalTrainingFocus, setGoalTrainingFocus] = useState(
+    profile?.goalTrainingAssessment?.primaryFocus ?? '',
+  );
+  const [goalTrainingRequirement, setGoalTrainingRequirement] = useState(
+    profile?.goalTrainingAssessment?.requirement ?? '',
+  );
+  const [goalTrainingDrivers, setGoalTrainingDrivers] = useState(
+    profile?.goalTrainingAssessment?.keyDrivers ?? '',
+  );
+  const [goalTrainingAssessmentMeta, setGoalTrainingAssessmentMeta] = useState(
+    profile?.goalTrainingAssessment ?? null,
+  );
   const [events, setEvents] = useState<TargetFormEntry[]>(() => mapTargetsToForm(profile?.events));
   const [goals, setGoals] = useState<TargetFormEntry[]>(() => mapTargetsToForm(profile?.goals));
   const [strengths, setStrengths] = useState(profile?.strengths ?? '');
@@ -257,6 +269,19 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     [],
   );
 
+  const goalTrainingAssessmentStatus = useMemo(() => {
+    if (!goalTrainingAssessmentMeta) {
+      return null;
+    }
+    const label = goalTrainingAssessmentMeta.modifiedByUser ? 'Edited' : 'Auto-generated';
+    const dateLabel = formatAssessmentDate(
+      goalTrainingAssessmentMeta.modifiedByUser
+        ? goalTrainingAssessmentMeta.updatedAt
+        : goalTrainingAssessmentMeta.generatedAt,
+    );
+    return dateLabel ? `${label} ${dateLabel}` : label;
+  }, [goalTrainingAssessmentMeta, formatAssessmentDate]);
+
   function parseFloatOrNull(value: string): number | null {
     const trimmed = value.trim();
     if (trimmed.length === 0) {
@@ -294,6 +319,20 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     }
     return pieces.join(' • ');
   }
+
+  const formatAssessmentDate = useCallback(
+    (value: string | null | undefined) => {
+      if (!value) {
+        return null;
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return null;
+      }
+      return previewDateFormatter.format(parsed);
+    },
+    [previewDateFormatter],
+  );
 
   function buildTargetPayload(entries: TargetFormEntry[], context: 'event' | 'goal'): ProfileTarget[] {
     const label = context === 'event' ? 'Event' : 'Goal';
@@ -400,6 +439,9 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     const trimmedWebsiteUrl = websiteUrl.trim();
     const trimmedInstagram = instagramHandle.trim().replace(/^@+/, '');
     const trimmedAchievements = achievements.trim();
+    const trimmedGoalFocus = goalTrainingFocus.trim();
+    const trimmedGoalRequirement = goalTrainingRequirement.trim();
+    const trimmedGoalDrivers = goalTrainingDrivers.trim();
 
     let parsedWeeklyGoal: number | null = null;
     let parsedFtp: number | null = null;
@@ -459,8 +501,41 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
     const trimmedStrengths = strengths.trim();
     const trimmedWeaknesses = weaknesses.trim();
 
+    let goalTrainingAssessmentUpdate:
+      | {
+          primaryFocus: string;
+          requirement: string;
+          keyDrivers?: string | null;
+        }
+      | null
+      | undefined;
+
+    if (
+      trimmedGoalFocus.length === 0 &&
+      trimmedGoalRequirement.length === 0 &&
+      trimmedGoalDrivers.length === 0
+    ) {
+      goalTrainingAssessmentUpdate = goalTrainingAssessmentMeta ? null : undefined;
+    } else {
+      if (trimmedGoalFocus.length === 0 || trimmedGoalRequirement.length === 0) {
+        setError(
+          'Provide both a training focus and summary, or clear all fields to remove the goal training assessment.',
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      goalTrainingAssessmentUpdate = {
+        primaryFocus: trimmedGoalFocus,
+        requirement: trimmedGoalRequirement,
+        ...(trimmedGoalDrivers.length > 0
+          ? { keyDrivers: trimmedGoalDrivers }
+          : { keyDrivers: null }),
+      };
+    }
+
     try {
-      const updates = {
+      const updates: Parameters<typeof updateProfile>[0] = {
         displayName: trimmedDisplayName.length > 0 ? trimmedDisplayName : null,
         avatarUrl: trimmedAvatarUrl.length > 0 ? trimmedAvatarUrl : null,
         bio: trimmedBio.length > 0 ? trimmedBio : null,
@@ -481,6 +556,10 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
         hrMaxBpm,
         hrRestBpm,
       };
+
+      if (goalTrainingAssessmentUpdate !== undefined) {
+        updates.goalTrainingAssessment = goalTrainingAssessmentUpdate;
+      }
 
       const updated = await updateProfile(updates, authToken);
       setDisplayName(updated.displayName ?? '');
@@ -504,6 +583,10 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
       setWeightKg(updated.weightKg ?? null);
       setHrMaxBpm(updated.hrMaxBpm ?? null);
       setHrRestBpm(updated.hrRestBpm ?? null);
+      setGoalTrainingFocus(updated.goalTrainingAssessment?.primaryFocus ?? '');
+      setGoalTrainingRequirement(updated.goalTrainingAssessment?.requirement ?? '');
+      setGoalTrainingDrivers(updated.goalTrainingAssessment?.keyDrivers ?? '');
+      setGoalTrainingAssessmentMeta(updated.goalTrainingAssessment ?? null);
       setSuccess('Profile updated successfully.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update profile.';
@@ -684,12 +767,78 @@ export function ProfileForm({ profile, authToken }: ProfileFormProps) {
                     />
                     <p className="text-xs text-muted-foreground">One accomplishment per line will display as a list on your public card.</p>
                   </div>
-                </CardContent>
-              </Card>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-semibold">Key events & goals</CardTitle>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-semibold">Goal training requirement</CardTitle>
+                <CardDescription>
+                  Describe the training qualities your season demands so insight reports stay aligned with your goals.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground" htmlFor="goalTrainingFocus">
+                    Primary focus
+                  </label>
+                  <Input
+                    id="goalTrainingFocus"
+                    value={goalTrainingFocus}
+                    onChange={(event) => setGoalTrainingFocus(event.target.value)}
+                    placeholder="e.g. Build race-ready durability"
+                    maxLength={80}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground" htmlFor="goalTrainingRequirement">
+                    Training summary
+                  </label>
+                  <textarea
+                    id="goalTrainingRequirement"
+                    value={goalTrainingRequirement}
+                    onChange={(event) => setGoalTrainingRequirement(event.target.value)}
+                    rows={3}
+                    maxLength={400}
+                    placeholder="Explain how your key events shape the work you need to prioritize."
+                    className="flex min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Two concise sentences keep the insight report introduction sharp.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground" htmlFor="goalTrainingDrivers">
+                    Key drivers (optional)
+                  </label>
+                  <textarea
+                    id="goalTrainingDrivers"
+                    value={goalTrainingDrivers}
+                    onChange={(event) => setGoalTrainingDrivers(event.target.value)}
+                    rows={2}
+                    maxLength={400}
+                    placeholder="Long threshold climbs, steady tempo volume, nutrition practice"
+                    className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    List the workouts, energy systems, or habits that influence this focus. Leave blank to clear them.
+                  </p>
+                </div>
+                {goalTrainingAssessmentMeta ? (
+                  <p className="text-xs text-muted-foreground">
+                    {goalTrainingAssessmentStatus ?? 'Auto-generated from your goals.'}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Leave these fields blank and save to remove the stored assessment.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-semibold">Key events & goals</CardTitle>
                   <CardDescription>
                     Map out the rides and breakthroughs that define your season-long focus.
                   </CardDescription>

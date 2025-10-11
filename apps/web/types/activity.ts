@@ -24,6 +24,7 @@ export interface ActivitySummary {
   insightReportGeneratedAt?: string | null;
   insightRecommendation?: ActivityInsightRecommendation | null;
   insightRecommendationGeneratedAt?: string | null;
+  goalTrainingAssessment?: GoalTrainingAssessment | null;
 }
 
 export type NumericLike = number | string;
@@ -69,6 +70,15 @@ export interface ActivityInsightReport {
   actionItems: string[];
 }
 
+export interface GoalTrainingAssessment {
+  primaryFocus: string;
+  requirement: string;
+  keyDrivers: string | null;
+  generatedAt: string;
+  updatedAt: string;
+  modifiedByUser: boolean;
+}
+
 export interface ActivityInsightRecommendation {
   recommendation: string;
   focus: string;
@@ -85,6 +95,7 @@ export interface ActivityInsightRecommendation {
 export interface ActivityInsightResponse {
   activityId: string;
   report: ActivityInsightReport;
+  goalTrainingAssessment: GoalTrainingAssessment | null;
   generatedAt: string;
 }
 

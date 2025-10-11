@@ -1,3 +1,5 @@
+import type { GoalTrainingAssessment } from './activity';
+
 export interface ProfileMetricSnapshot {
   activityId: string;
   activityStartTime: string;
@@ -204,6 +206,7 @@ export interface Profile {
   websiteUrl: string | null;
   instagramHandle: string | null;
   achievements: string | null;
+  goalTrainingAssessment: GoalTrainingAssessment | null;
   events: ProfileTarget[];
   goals: ProfileTarget[];
   strengths: string | null;

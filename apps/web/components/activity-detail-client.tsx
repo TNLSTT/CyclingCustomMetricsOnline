@@ -21,6 +21,7 @@ import type {
   ActivityTrackBounds,
   ActivityInsightReport,
   ActivityInsightRecommendation,
+  GoalTrainingAssessment,
 } from '../types/activity';
 import { ActivitySummaryHero } from './activity-summary-hero';
 import { HcsrChart } from './hcsr-chart';
@@ -403,6 +404,9 @@ export function ActivityDetailClient({
   const [insightReportGeneratedAt, setInsightReportGeneratedAt] = useState<string | null>(
     activity.insightReportGeneratedAt ?? null,
   );
+  const [trainingAssessment, setTrainingAssessment] = useState<GoalTrainingAssessment | null>(
+    activity.goalTrainingAssessment ?? null,
+  );
   const [insightRecommendation, setInsightRecommendation] =
     useState<ActivityInsightRecommendation | null>(initialRecommendation);
   const [insightRecommendationGeneratedAt, setInsightRecommendationGeneratedAt] = useState<
@@ -478,6 +482,20 @@ export function ActivityDetailClient({
     return timestamp.toLocaleString();
   };
 
+  const formatTrainingAssessmentStatus = (assessment: GoalTrainingAssessment | null) => {
+    if (!assessment) {
+      return null;
+    }
+    const label = assessment.modifiedByUser ? 'Edited' : 'Auto-generated';
+    const timestamp = new Date(
+      assessment.modifiedByUser ? assessment.updatedAt : assessment.generatedAt,
+    );
+    if (Number.isNaN(timestamp.getTime())) {
+      return label;
+    }
+    return `${label} ${timestamp.toLocaleDateString()}`;
+  };
+
   const handleGenerateInsightReport = () => {
     setInsightError(null);
     startInsightTransition(async () => {
@@ -485,6 +503,7 @@ export function ActivityDetailClient({
         const response = await requestActivityInsightReport(activity.id, session?.accessToken);
         setInsightReport(response.report);
         setInsightReportGeneratedAt(response.generatedAt);
+        setTrainingAssessment(response.goalTrainingAssessment ?? null);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Unable to generate an insight report right now.';
@@ -802,6 +821,27 @@ export function ActivityDetailClient({
                 <AlertTitle>Insight generation failed</AlertTitle>
                 <AlertDescription>{insightError}</AlertDescription>
               </Alert>
+            ) : null}
+            {trainingAssessment ? (
+              <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/10 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold">Training requirement</span>
+                  <Badge className="border border-primary/40 bg-primary/15 text-xs font-semibold uppercase tracking-wide text-primary">
+                    {trainingAssessment.primaryFocus}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{trainingAssessment.requirement}</p>
+                {trainingAssessment.keyDrivers ? (
+                  <p className="text-xs text-muted-foreground">
+                    Key drivers: {trainingAssessment.keyDrivers}
+                  </p>
+                ) : null}
+                {formatTrainingAssessmentStatus(trainingAssessment) ? (
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {formatTrainingAssessmentStatus(trainingAssessment)}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             {insightReport ? (
               <div className="space-y-4 text-sm leading-relaxed">

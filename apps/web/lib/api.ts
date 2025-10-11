@@ -268,6 +268,13 @@ export async function updateProfile(
     goals?: Profile['goals'];
     strengths?: string | null;
     weaknesses?: string | null;
+    goalTrainingAssessment?:
+      | {
+          primaryFocus: string;
+          requirement: string;
+          keyDrivers?: string | null;
+        }
+      | null;
   },
   authToken?: string,
 ) {
