@@ -76,6 +76,10 @@ type ProfileRecord = {
   websiteUrl: string | null;
   instagramHandle: string | null;
   achievements: string | null;
+  events: unknown;
+  goals: unknown;
+  strengths: string | null;
+  weaknesses: string | null;
   analytics: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -446,6 +450,10 @@ function createPrismaMock(): PrismaMock {
           websiteUrl: data.websiteUrl ?? null,
           instagramHandle: data.instagramHandle ?? null,
           achievements: data.achievements ?? null,
+          events: data.events ?? [],
+          goals: data.goals ?? [],
+          strengths: data.strengths ?? null,
+          weaknesses: data.weaknesses ?? null,
           analytics: data.analytics ?? null,
           createdAt: data.createdAt ?? now,
           updatedAt: data.updatedAt ?? now,
@@ -482,6 +490,10 @@ function createPrismaMock(): PrismaMock {
           'websiteUrl',
           'instagramHandle',
           'achievements',
+          'events',
+          'goals',
+          'strengths',
+          'weaknesses',
           'analytics',
         ];
 

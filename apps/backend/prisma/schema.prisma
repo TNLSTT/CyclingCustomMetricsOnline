@@ -48,6 +48,10 @@ model Profile {
   websiteUrl  String?
   instagramHandle String?
   achievements String?
+  events      Json?    @default("[]")
+  goals       Json?    @default("[]")
+  strengths   String?
+  weaknesses  String?
   analytics   Json?    @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -166,6 +166,27 @@ export interface ProfileAnalytics {
   lastUpdatedAt?: string;
 }
 
+export interface ProfileTarget {
+  id: string;
+  name: string;
+  date: string | null;
+  durationHours: number | null;
+  distanceKm: number | null;
+  criticalEffort:
+    | {
+        durationMinutes: number | null;
+        powerWatts: number | null;
+      }
+    | null;
+  targetAveragePowerWatts: number | null;
+  notes: string | null;
+}
+
+export interface ProfilePowerBest {
+  durationMinutes: number;
+  watts: number | null;
+}
+
 export interface Profile {
   id: string;
   userId: string;
@@ -183,6 +204,11 @@ export interface Profile {
   websiteUrl: string | null;
   instagramHandle: string | null;
   achievements: string | null;
+  events: ProfileTarget[];
+  goals: ProfileTarget[];
+  strengths: string | null;
+  weaknesses: string | null;
+  powerBests: ProfilePowerBest[];
   analytics: ProfileAnalytics | null;
   createdAt: string;
   updatedAt: string;

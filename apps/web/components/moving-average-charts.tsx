@@ -30,12 +30,14 @@ const POWER_DURATIONS: Array<{ key: PeakPowerDurationKey; label: string }> = [
   { key: '300', label: '5-minute' },
   { key: '1200', label: '20-minute' },
   { key: '3600', label: '60-minute' },
+  { key: '10800', label: '3-hour' },
+  { key: '14400', label: '4-hour' },
 ];
 
 const POWER_MOVING_AVERAGE_WINDOW = 45;
 
 const KJ_COLORS = ['#0ea5e9', '#22c55e', '#6366f1', '#f97316', '#9333ea', '#64748b'];
-const POWER_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#6366f1'];
+const POWER_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#6366f1', '#14b8a6', '#8b5cf6'];
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
