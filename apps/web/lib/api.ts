@@ -246,6 +246,10 @@ export async function updateProfile(
     weightKg?: number | null;
     hrMaxBpm?: number | null;
     hrRestBpm?: number | null;
+    events?: Profile['events'];
+    goals?: Profile['goals'];
+    strengths?: string | null;
+    weaknesses?: string | null;
   },
   authToken?: string,
 ) {

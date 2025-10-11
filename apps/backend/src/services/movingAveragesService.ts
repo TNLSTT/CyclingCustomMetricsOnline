@@ -7,7 +7,7 @@ import {
   sumPower,
 } from '../utils/power.js';
 
-const POWER_DURATIONS_SECONDS = [60, 300, 1200, 3600] as const;
+const POWER_DURATIONS_SECONDS = [60, 300, 1200, 3600, 10800, 14400] as const;
 
 type PowerDurationKey = `${(typeof POWER_DURATIONS_SECONDS)[number]}`;
 
@@ -139,6 +139,8 @@ function serializeDay(entry: DayAggregation): MovingAverageDay {
     '300': entry.bestPower.get('300') ?? null,
     '1200': entry.bestPower.get('1200') ?? null,
     '3600': entry.bestPower.get('3600') ?? null,
+    '10800': entry.bestPower.get('10800') ?? null,
+    '14400': entry.bestPower.get('14400') ?? null,
   };
 
   return {

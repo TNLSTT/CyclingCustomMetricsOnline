@@ -44,6 +44,10 @@ declare module '@prisma/client' {
     websiteUrl: string | null;
     instagramHandle: string | null;
     achievements: string | null;
+    events: Record<string, unknown> | unknown[] | null;
+    goals: Record<string, unknown> | unknown[] | null;
+    strengths: string | null;
+    weaknesses: string | null;
     analytics: Record<string, unknown> | null;
     createdAt: Date;
     updatedAt: Date;

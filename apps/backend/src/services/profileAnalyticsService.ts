@@ -620,7 +620,7 @@ export function summarizeAdaptationEdges(
   };
 }
 
-const POWER_KEYS = ['60', '300', '1200', '3600'] as const;
+const POWER_KEYS = ['60', '300', '1200', '3600', '10800', '14400'] as const;
 
 export function summarizeMovingAverages(days: MovingAverageDay[]): ProfileMovingAverageSummary {
   const totalKj = days.reduce((sum, day) => sum + (day.totalKj ?? 0), 0);
