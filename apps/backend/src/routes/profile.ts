@@ -453,10 +453,20 @@ function toNullableNumber(value: unknown): number | null | undefined {
 
 export const profileRouter = express.Router();
 
+async function userExists(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  return Boolean(user);
+}
+
 async function getOrCreateProfile(userId: string) {
   const existing = await prisma.profile.findUnique({ where: { userId } });
   if (existing) {
     return existing;
+  }
+
+  const hasUser = await userExists(userId);
+  if (!hasUser) {
+    return null;
   }
 
   return prisma.profile.create({ data: { userId } });
@@ -477,6 +487,10 @@ profileRouter.get(
     }
 
     const profile = await getOrCreateProfile(userId);
+    if (!profile) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
 
     res.status(200).json(buildProfileResponse(profile));
   }),
@@ -525,6 +539,12 @@ profileRouter.put(
     const data = parsed.data;
 
     const userId = req.user.id;
+    const hasUser = await userExists(userId);
+    if (!hasUser) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
     const existing = await prisma.profile.findUnique({ where: { userId } });
 
     const cleanedEntries = Object.entries(data).filter(([, value]) => value !== undefined);
