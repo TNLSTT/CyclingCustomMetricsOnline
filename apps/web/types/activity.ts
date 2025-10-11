@@ -4,6 +4,16 @@ export interface MetricSummary {
   computedAt: string;
 }
 
+export interface ActivityAiMessage {
+  content: string;
+  model?: string | null;
+  usage?: {
+    promptTokens?: number | null;
+    completionTokens?: number | null;
+    totalTokens?: number | null;
+  } | null;
+}
+
 export interface ActivitySummary {
   id: string;
   source: string;
@@ -20,6 +30,10 @@ export interface ActivitySummary {
   averageCadence?: number | null;
   previousActivityId?: string | null;
   nextActivityId?: string | null;
+  aiInsight?: ActivityAiMessage | null;
+  aiInsightGeneratedAt?: string | null;
+  aiRecommendation?: ActivityAiMessage | null;
+  aiRecommendationGeneratedAt?: string | null;
 }
 
 export type NumericLike = number | string;
@@ -138,4 +152,16 @@ export interface IntervalEfficiencyHistoryResponse {
   };
   intervalSeconds: number;
   points: IntervalEfficiencyHistoryPoint[];
+}
+
+export interface ActivityInsightResponse {
+  activityId: string;
+  generatedAt: string;
+  insight: ActivityAiMessage;
+}
+
+export interface ActivityRecommendationResponse {
+  activityId: string;
+  generatedAt: string;
+  recommendation: ActivityAiMessage;
 }

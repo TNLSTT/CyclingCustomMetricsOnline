@@ -9,6 +9,12 @@ import { deleteActivity } from '../services/activityService.js';
 import { runMetrics } from '../metrics/runner.js';
 import { normalizeIntervalEfficiencySeries } from '../metrics/intervalEfficiency.js';
 import { recordMetricEvent } from '../services/telemetryService.js';
+import {
+  generateActivityNarrative,
+  ActivityNotFoundError,
+  MissingOpenAiKeyError,
+} from '../services/activityAiService.js';
+import { logger } from '../logger.js';
 
 const paginationSchema = z
   .object({
@@ -36,6 +42,65 @@ type ActivityWithMetrics = Prisma.ActivityGetPayload<{
   };
 }>;
 
+type AiMessage = {
+  content: string;
+  model?: string | null;
+  usage?: {
+    promptTokens?: number | null;
+    completionTokens?: number | null;
+    totalTokens?: number | null;
+  } | null;
+};
+
+function parseAiMessage(value: Prisma.JsonValue | null | undefined): AiMessage | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const content = typeof payload.content === 'string' ? payload.content : null;
+
+  if (!content) {
+    return null;
+  }
+
+  const model = typeof payload.model === 'string' ? payload.model : null;
+  const usageValue = payload.usage;
+  let usage: AiMessage['usage'] = null;
+
+  if (usageValue && typeof usageValue === 'object' && !Array.isArray(usageValue)) {
+    const usageRecord = usageValue as Record<string, unknown>;
+    usage = {
+      promptTokens:
+        typeof usageRecord.promptTokens === 'number'
+          ? usageRecord.promptTokens
+          : usageRecord.promptTokens == null
+            ? null
+            : Number.isFinite(Number(usageRecord.promptTokens))
+              ? Number(usageRecord.promptTokens)
+              : null,
+      completionTokens:
+        typeof usageRecord.completionTokens === 'number'
+          ? usageRecord.completionTokens
+          : usageRecord.completionTokens == null
+            ? null
+            : Number.isFinite(Number(usageRecord.completionTokens))
+              ? Number(usageRecord.completionTokens)
+              : null,
+      totalTokens:
+        typeof usageRecord.totalTokens === 'number'
+          ? usageRecord.totalTokens
+          : usageRecord.totalTokens == null
+            ? null
+            : Number.isFinite(Number(usageRecord.totalTokens))
+              ? Number(usageRecord.totalTokens)
+              : null,
+    };
+  }
+
+  return { content, model, usage } satisfies AiMessage;
+}
+
 function mapActivity(activity: ActivityWithMetrics) {
   return {
     id: activity.id,
@@ -55,6 +120,10 @@ function mapActivity(activity: ActivityWithMetrics) {
       summary: metric.summary,
       computedAt: metric.computedAt,
     })),
+    aiInsight: parseAiMessage(activity.aiInsight ?? null),
+    aiInsightGeneratedAt: activity.aiInsightGeneratedAt ?? null,
+    aiRecommendation: parseAiMessage(activity.aiRecommendation ?? null),
+    aiRecommendationGeneratedAt: activity.aiRecommendationGeneratedAt ?? null,
   };
 }
 
@@ -392,6 +461,122 @@ activitiesRouter.post(
 
     const results = await runMetrics(req.params.id, metricKeys ?? undefined, req.user?.id);
     res.status(200).json({ activityId: req.params.id, results });
+  }),
+);
+
+activitiesRouter.post(
+  '/:id/ai-insight',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user?.id ?? null;
+    const startedAt = Date.now();
+
+    try {
+      const result = await generateActivityNarrative(req.params.id, 'insight', userId);
+
+      await recordMetricEvent({
+        type: 'activity_ai_insight',
+        userId,
+        activityId: req.params.id,
+        success: true,
+        durationMs: Date.now() - startedAt,
+        meta: {
+          model: result.message.model ?? null,
+          promptTokens: result.message.usage?.promptTokens ?? null,
+          completionTokens: result.message.usage?.completionTokens ?? null,
+        },
+      });
+
+      res.status(200).json({
+        activityId: result.activityId,
+        generatedAt: result.generatedAt.toISOString(),
+        insight: result.message,
+      });
+    } catch (error) {
+      await recordMetricEvent({
+        type: 'activity_ai_insight',
+        userId,
+        activityId: req.params.id,
+        success: false,
+        durationMs: Date.now() - startedAt,
+        meta: { error: error instanceof Error ? error.message : 'Unknown error' },
+      });
+
+      if (error instanceof MissingOpenAiKeyError) {
+        res.status(503).json({ error: error.message });
+        return;
+      }
+
+      if (error instanceof ActivityNotFoundError) {
+        res.status(404).json({ error: 'Activity not found' });
+        return;
+      }
+
+      logger.error({ err: error, activityId: req.params.id }, 'Failed to generate AI insight');
+      res.status(500).json({ error: 'Failed to generate insight report' });
+    }
+  }),
+);
+
+activitiesRouter.post(
+  '/:id/ai-recommendation',
+  asyncHandler(async (req, res) => {
+    if (env.AUTH_ENABLED && !req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user?.id ?? null;
+    const startedAt = Date.now();
+
+    try {
+      const result = await generateActivityNarrative(req.params.id, 'recommendation', userId);
+
+      await recordMetricEvent({
+        type: 'activity_ai_recommendation',
+        userId,
+        activityId: req.params.id,
+        success: true,
+        durationMs: Date.now() - startedAt,
+        meta: {
+          model: result.message.model ?? null,
+          promptTokens: result.message.usage?.promptTokens ?? null,
+          completionTokens: result.message.usage?.completionTokens ?? null,
+        },
+      });
+
+      res.status(200).json({
+        activityId: result.activityId,
+        generatedAt: result.generatedAt.toISOString(),
+        recommendation: result.message,
+      });
+    } catch (error) {
+      await recordMetricEvent({
+        type: 'activity_ai_recommendation',
+        userId,
+        activityId: req.params.id,
+        success: false,
+        durationMs: Date.now() - startedAt,
+        meta: { error: error instanceof Error ? error.message : 'Unknown error' },
+      });
+
+      if (error instanceof MissingOpenAiKeyError) {
+        res.status(503).json({ error: error.message });
+        return;
+      }
+
+      if (error instanceof ActivityNotFoundError) {
+        res.status(404).json({ error: 'Activity not found' });
+        return;
+      }
+
+      logger.error({ err: error, activityId: req.params.id }, 'Failed to generate AI recommendation');
+      res.status(500).json({ error: "Failed to generate tomorrow's recommendation" });
+    }
   }),
 );
 
