@@ -42,7 +42,7 @@ There are two `.env` files you should create locally so the backend, Prisma CLI,
 
 | File | Purpose | How to create | Important variables |
 | --- | --- | --- | --- |
-| `.env` | Shared defaults loaded by the backend (`dotenv/config`) and Prisma commands. | `cp .env.example .env` | `DATABASE_URL`, `UPLOAD_DIR`, `AUTH_ENABLED`, `NEXTAUTH_SECRET`, `JWT_SECRET`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD`. |
+| `.env` | Shared defaults loaded by the backend (`dotenv/config`) and Prisma commands. | `cp .env.example .env` | `DATABASE_URL`, `UPLOAD_DIR`, `AUTH_ENABLED`, `NEXTAUTH_SECRET`, `JWT_SECRET`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD`. |
 | `apps/web/.env.local` | Next.js only reads env vars from inside the app directory. Copy the frontend values from `.env` so the web UI can call the API. | `cp .env.example apps/web/.env.local` and then delete the backend-only keys. | `NEXT_PUBLIC_API_URL`, `NEXT_INTERNAL_API_URL`, `NEXT_PUBLIC_AUTH_ENABLED`, `NEXTAUTH_SECRET` (to keep NextAuth sessions in sync). |
 
 When you change any variable (for example swapping databases or rotating secrets) update **both** files so the CLI, API, and frontend stay aligned. Re-run the relevant dev servers after editing so the new values are picked up.
@@ -56,6 +56,18 @@ Key variables to review before running locally:
 - `NEXT_PUBLIC_API_URL` – frontend-to-backend base URL (`http://localhost:4000/api` in dev).
 - `NEXT_INTERNAL_API_URL` – internal API URL for server-side Next.js fetching (e.g. `http://backend:4000/api` in Docker).
 - `NEXTAUTH_SECRET`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD` – NextAuth credentials (optional).
+- `OPENAI_API_KEY` – secret used by the AI insight service to call OpenAI. Set it in `.env` (and your production secrets) to enable on-demand ride summaries.
+- `OPENAI_MODEL` – optional override for the OpenAI model (`gpt-4o-mini` is used by default).
+
+#### AI-powered activity insights
+
+The "Generate insight report" and "What's recommended for tomorrow?" buttons on the activity detail page call OpenAI with the ride context, recent training load, and your saved goals. To enable them:
+
+1. Add `OPENAI_API_KEY=<your key>` to `.env` (and to your production secret manager). Keep the key out of source control.
+2. Optionally set `OPENAI_MODEL` if you need a different OpenAI Responses model; otherwise the backend defaults to `gpt-4o-mini`.
+3. Restart the backend server so the new environment variables are picked up.
+
+Without a key, the buttons return a "503 – OpenAI API key is not configured" message and the UI stays disabled for safety.
 
 ### Authentication
 

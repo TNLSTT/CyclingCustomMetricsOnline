@@ -66,6 +66,10 @@ model Activity {
   durationSec   Int
   sampleRateHz  Float?
   createdAt     DateTime         @default(now())
+  aiInsight     Json?
+  aiInsightGeneratedAt DateTime?
+  aiRecommendation Json?
+  aiRecommendationGeneratedAt DateTime?
   samples       ActivitySample[]
   metrics       MetricResult[]
   metricEvents  MetricEvent[]

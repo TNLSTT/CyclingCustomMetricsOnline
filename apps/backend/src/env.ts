@@ -18,6 +18,8 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().default('./uploads'),
   FRONTEND_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

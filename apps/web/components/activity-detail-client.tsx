@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Compass, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 import {
@@ -9,6 +9,8 @@ import {
   fetchActivityTrack,
   fetchIntervalEfficiency,
   fetchMetricResult,
+  generateActivityInsight,
+  generateActivityRecommendation,
 } from '../lib/api';
 import { formatDuration } from '../lib/utils';
 import type {
@@ -17,6 +19,7 @@ import type {
   MetricResultDetail,
   ActivityTrackPoint,
   ActivityTrackBounds,
+  ActivityAiMessage,
 } from '../types/activity';
 import { ActivitySummaryHero } from './activity-summary-hero';
 import { HcsrChart } from './hcsr-chart';
@@ -311,6 +314,20 @@ export function ActivityDetailClient({
   const [whrMetric, setWhrMetric] = useState<MetricResultDetail | null | undefined>(
     initialWhrEfficiency,
   );
+  const [aiInsight, setAiInsight] = useState<ActivityAiMessage | null>(activity.aiInsight ?? null);
+  const [aiInsightGeneratedAt, setAiInsightGeneratedAt] = useState<string | null>(
+    activity.aiInsightGeneratedAt ?? null,
+  );
+  const [aiRecommendation, setAiRecommendation] = useState<ActivityAiMessage | null>(
+    activity.aiRecommendation ?? null,
+  );
+  const [aiRecommendationGeneratedAt, setAiRecommendationGeneratedAt] = useState<string | null>(
+    activity.aiRecommendationGeneratedAt ?? null,
+  );
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [isInsightPending, startInsightTransition] = useTransition();
+  const [isRecommendationPending, startRecommendationTransition] = useTransition();
   const [trackPoints, setTrackPoints] = useState<ActivityTrackPoint[]>([]);
   const [trackBounds, setTrackBounds] = useState<ActivityTrackBounds | null>(null);
   const [trackError, setTrackError] = useState<string | null>(null);
@@ -375,6 +392,19 @@ export function ActivityDetailClient({
   const rideDurationDetail = detailValue(rideDurationDisplay);
   const halfSplitPointDisplay = formatDuration(Math.floor(activity.durationSec / 2));
   const halfSplitPointDetail = detailValue(halfSplitPointDisplay);
+
+  useEffect(() => {
+    setAiInsight(activity.aiInsight ?? null);
+    setAiInsightGeneratedAt(activity.aiInsightGeneratedAt ?? null);
+    setAiRecommendation(activity.aiRecommendation ?? null);
+    setAiRecommendationGeneratedAt(activity.aiRecommendationGeneratedAt ?? null);
+  }, [
+    activity.aiInsight,
+    activity.aiInsightGeneratedAt,
+    activity.aiRecommendation,
+    activity.aiRecommendationGeneratedAt,
+    activity.id,
+  ]);
 
   const handleRecompute = () => {
     startTransition(async () => {
@@ -554,6 +584,47 @@ export function ActivityDetailClient({
       ? `${formatNumber(lateAerobicSummary.requestedWindowSeconds)} s requested (${lateRequestedMinutesDisplay === '—' ? '35 min target' : `${lateRequestedMinutesDisplay} min`})`
       : 'Not available';
   const lateCoveragePercentDetail = detailValue(lateCoverageDisplay);
+  const formatTimestamp = (value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toLocaleString();
+  };
+  const insightGeneratedDisplay = formatTimestamp(aiInsightGeneratedAt);
+  const recommendationGeneratedDisplay = formatTimestamp(aiRecommendationGeneratedAt);
+
+  const handleGenerateInsight = () => {
+    setAiError(null);
+    startInsightTransition(async () => {
+      try {
+        const response = await generateActivityInsight(activity.id, session?.accessToken);
+        setAiInsight(response.insight ?? null);
+        setAiInsightGeneratedAt(response.generatedAt ?? null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to generate insight report';
+        setAiError(message);
+      }
+    });
+  };
+
+  const handleGenerateRecommendation = () => {
+    setRecommendationError(null);
+    startRecommendationTransition(async () => {
+      try {
+        const response = await generateActivityRecommendation(activity.id, session?.accessToken);
+        setAiRecommendation(response.recommendation ?? null);
+        setAiRecommendationGeneratedAt(response.generatedAt ?? null);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to generate tomorrow's recommendation";
+        setRecommendationError(message);
+      }
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -613,6 +684,108 @@ export function ActivityDetailClient({
         previousActivityId={activity.previousActivityId ?? null}
         nextActivityId={activity.nextActivityId ?? null}
       />
+      <Card>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1">
+            <CardTitle>AI insight report</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Summarises how this ride contributes to your training goals using your recent history.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {insightGeneratedDisplay
+                ? `Last generated ${insightGeneratedDisplay}${aiInsight?.model ? ` · ${aiInsight.model}` : ''}`
+                : 'No AI insight generated yet.'}
+            </p>
+          </div>
+          <Button onClick={handleGenerateInsight} disabled={isInsightPending} className="gap-2">
+            {isInsightPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating…</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Generate insight report</span>
+              </>
+            )}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {aiError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Insight unavailable</AlertTitle>
+              <AlertDescription>{aiError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="rounded-lg border border-border/60 bg-background/70 p-4">
+            {aiInsight ? (
+              <>
+                <div className="whitespace-pre-wrap text-sm leading-6 text-foreground">{aiInsight.content}</div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {aiInsight.model ? `Model: ${aiInsight.model}` : null}
+                  {aiInsight.model && aiInsight.usage?.totalTokens ? ' · ' : null}
+                  {aiInsight.usage?.totalTokens ? `Tokens: ${aiInsight.usage.totalTokens}` : null}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Click "Generate insight report" to see how this ride advances your objectives.
+              </p>
+            )}
+          </div>
+          <div className="space-y-3 rounded-lg border border-dashed border-border/60 bg-muted/40 p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Tomorrow&apos;s recommendation</p>
+                <p className="text-xs text-muted-foreground">
+                  {recommendationGeneratedDisplay
+                    ? `Last generated ${recommendationGeneratedDisplay}${aiRecommendation?.model ? ` · ${aiRecommendation.model}` : ''}`
+                    : 'Ask for a personalised focus for your next session.'}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={handleGenerateRecommendation}
+                disabled={isRecommendationPending}
+                className="gap-2"
+              >
+                {isRecommendationPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Thinking…</span>
+                  </>
+                ) : (
+                  <>
+                    <Compass className="h-4 w-4" />
+                    <span>What&apos;s recommended for tomorrow?</span>
+                  </>
+                )}
+              </Button>
+            </div>
+            {recommendationError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Recommendation unavailable</AlertTitle>
+                <AlertDescription>{recommendationError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="rounded-md border border-border/50 bg-background/80 p-4 text-sm leading-6 text-muted-foreground whitespace-pre-wrap">
+              {aiRecommendation ? (
+                <>
+                  <div className="text-foreground">{aiRecommendation.content}</div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    {aiRecommendation.model ? `Model: ${aiRecommendation.model}` : null}
+                    {aiRecommendation.model && aiRecommendation.usage?.totalTokens ? ' · ' : null}
+                    {aiRecommendation.usage?.totalTokens ? `Tokens: ${aiRecommendation.usage.totalTokens}` : null}
+                  </div>
+                </>
+              ) : (
+                "Request a recommendation to tailor tomorrow's plan."
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="max-w-xl text-sm text-muted-foreground">
           <p>

@@ -11,6 +11,8 @@ import type {
   IntervalEfficiencyHistoryResponse,
   ActivityTrackResponse,
   PowerStreamResponse,
+  ActivityInsightResponse,
+  ActivityRecommendationResponse,
 } from '../types/activity';
 import type { Profile } from '../types/profile';
 import type { AdaptationEdgesResponse } from '../types/adaptation';
@@ -116,6 +118,22 @@ export async function fetchPowerStream(activityId: string, authToken?: string) {
   return apiFetch<PowerStreamResponse>(
     `/activities/${activityId}/streams/power`,
     undefined,
+    authToken,
+  );
+}
+
+export async function generateActivityInsight(activityId: string, authToken?: string) {
+  return apiFetch<ActivityInsightResponse>(
+    `/activities/${activityId}/ai-insight`,
+    { method: 'POST' },
+    authToken,
+  );
+}
+
+export async function generateActivityRecommendation(activityId: string, authToken?: string) {
+  return apiFetch<ActivityRecommendationResponse>(
+    `/activities/${activityId}/ai-recommendation`,
+    { method: 'POST' },
     authToken,
   );
 }
