@@ -14,6 +14,7 @@ import {
   MissingOpenAiKeyError,
   generateActivityInsightReport,
   generateActivityRecommendation,
+  parseGoalTrainingAssessment,
 } from '../services/activityInsightService.js';
 
 const paginationSchema = z
@@ -39,6 +40,15 @@ type ActivityWithMetrics = Prisma.ActivityGetPayload<{
         metricDefinition: true;
       };
     };
+    user: {
+      select: {
+        profile: {
+          select: {
+            goalTrainingAssessment: true;
+          };
+        };
+      };
+    };
   };
 }>;
 
@@ -60,6 +70,9 @@ function mapActivity(activity: ActivityWithMetrics) {
     insightReportGeneratedAt: activity.insightReportGeneratedAt,
     insightRecommendation: activity.insightRecommendation ?? null,
     insightRecommendationGeneratedAt: activity.insightRecommendationGeneratedAt,
+    goalTrainingAssessment: parseGoalTrainingAssessment(
+      activity.user?.profile?.goalTrainingAssessment ?? null,
+    ),
     metrics: (activity.metrics ?? []).map((metric: any) => ({
       key: metric.metricDefinition.key,
       summary: metric.summary,
@@ -119,6 +132,13 @@ activitiesRouter.get(
           metrics: {
             include: { metricDefinition: true },
           },
+          user: {
+            select: {
+              profile: {
+                select: { goalTrainingAssessment: true },
+              },
+            },
+          },
         },
       }),
       prisma.activity.count({ where: userId ? { userId } : undefined }),
@@ -159,6 +179,13 @@ activitiesRouter.get(
         metrics: {
           include: { metricDefinition: true },
           orderBy: { computedAt: 'desc' },
+        },
+        user: {
+          select: {
+            profile: {
+              select: { goalTrainingAssessment: true },
+            },
+          },
         },
       },
     });

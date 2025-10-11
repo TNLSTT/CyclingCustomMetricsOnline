@@ -35,6 +35,18 @@ const recommendationSchema = z.object({
   reminders: z.array(z.string()).min(1).max(6),
 });
 
+const goalTrainingAssessmentSchema = z.object({
+  primaryFocus: z.string().min(1).max(80),
+  requirement: z.string().min(1).max(400),
+  keyDrivers: z.string().min(1).max(400).nullable().optional(),
+});
+
+const goalTrainingAssessmentRecordSchema = goalTrainingAssessmentSchema.extend({
+  generatedAt: z.string(),
+  updatedAt: z.string(),
+  modifiedByUser: z.boolean(),
+});
+
 const insightReportJsonSchema = {
   name: 'activity_insight_report',
   schema: {
@@ -133,6 +145,30 @@ const recommendationJsonSchema = {
   },
 } as const;
 
+const goalTrainingAssessmentJsonSchema = {
+  name: 'goal_training_assessment',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['primaryFocus', 'requirement'],
+    properties: {
+      primaryFocus: {
+        type: 'string',
+        description: 'The primary training quality or system the athlete must develop for their goals.',
+      },
+      requirement: {
+        type: 'string',
+        description: 'One to two sentence summary that links the athlete\'s goals to the required training focus.',
+      },
+      keyDrivers: {
+        type: ['string', 'null'],
+        description:
+          'Optional brief explanation of what most influences development of the required focus (sessions, intensities, or volume).',
+      },
+    },
+  },
+} as const;
+
 export class ActivityInsightError extends Error {}
 
 export class MissingOpenAiKeyError extends ActivityInsightError {
@@ -147,9 +183,10 @@ export class ActivityInsightNotFoundError extends ActivityInsightError {
   }
 }
 
-type InsightMetric = z.infer<typeof insightMetricSchema>;
 export type ActivityInsightReport = z.infer<typeof insightReportSchema>;
 export type ActivityInsightRecommendation = z.infer<typeof recommendationSchema>;
+type GoalTrainingAssessmentSummary = z.infer<typeof goalTrainingAssessmentSchema>;
+export type GoalTrainingAssessmentRecord = z.infer<typeof goalTrainingAssessmentRecordSchema>;
 
 interface ActivityInsightContext {
   activity: {
@@ -185,6 +222,7 @@ interface ActivityInsightContext {
     }>;
   };
   goals: Array<Record<string, unknown>>;
+  goalTrainingAssessment: GoalTrainingAssessmentRecord | null;
 }
 
 function isNumber(value: unknown): value is number {
@@ -216,6 +254,26 @@ function sanitizeGoalList(value: unknown): Array<Record<string, unknown>> {
   return value
     .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
     .map((entry) => entry);
+}
+
+export function parseGoalTrainingAssessment(value: unknown): GoalTrainingAssessmentRecord | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const parsed = goalTrainingAssessmentRecordSchema.safeParse(value);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return {
+    primaryFocus: parsed.data.primaryFocus,
+    requirement: parsed.data.requirement,
+    keyDrivers: parsed.data.keyDrivers ?? null,
+    generatedAt: parsed.data.generatedAt,
+    updatedAt: parsed.data.updatedAt,
+    modifiedByUser: parsed.data.modifiedByUser,
+  } satisfies GoalTrainingAssessmentRecord;
 }
 
 function startOfIsoWeek(date: Date): Date {
@@ -277,7 +335,7 @@ async function buildInsightContext(activityId: string, userId?: string): Promise
     activity.userId
       ? prisma.profile.findUnique({
           where: { userId: activity.userId },
-          select: { goals: true },
+          select: { goals: true, goalTrainingAssessment: true },
         })
       : null,
   ]);
@@ -324,6 +382,16 @@ async function buildInsightContext(activityId: string, userId?: string): Promise
     averageCadence: isNumber(ride.averageCadence) ? Number(ride.averageCadence.toFixed(0)) : null,
   }));
 
+  const sanitizedGoals = sanitizeGoalList(profile?.goals ?? []);
+  let goalTrainingAssessment = parseGoalTrainingAssessment(profile?.goalTrainingAssessment ?? null);
+
+  if (!goalTrainingAssessment && activity.userId && sanitizedGoals.length > 0) {
+    goalTrainingAssessment = await generateGoalTrainingAssessment({
+      userId: activity.userId,
+      goals: sanitizedGoals,
+    });
+  }
+
   return {
     activity: {
       id: activity.id,
@@ -350,8 +418,49 @@ async function buildInsightContext(activityId: string, userId?: string): Promise
       averageWeeklyDurationHours: Number((hoursFromSeconds(totalDurationSec) / weeksCovered).toFixed(2)),
       weekly,
     },
-    goals: sanitizeGoalList(profile?.goals ?? []),
+    goals: sanitizedGoals,
+    goalTrainingAssessment,
   } satisfies ActivityInsightContext;
+}
+
+async function generateGoalTrainingAssessment({
+  userId,
+  goals,
+}: {
+  userId: string;
+  goals: Array<Record<string, unknown>>;
+}): Promise<GoalTrainingAssessmentRecord | null> {
+  if (goals.length === 0) {
+    return null;
+  }
+
+  const prompt =
+    'Analyze the athlete\'s stated goals. Identify the primary training focus required to excel and summarize why that focus matters. Keep the tone like a coach. Return concise statements.';
+
+  const content = await callOpenAi({
+    prompt,
+    context: { goals },
+    schema: goalTrainingAssessmentJsonSchema,
+  });
+
+  const parsed = goalTrainingAssessmentSchema.parse(JSON.parse(content)) as GoalTrainingAssessmentSummary;
+  const timestamp = new Date().toISOString();
+
+  const record: GoalTrainingAssessmentRecord = {
+    primaryFocus: parsed.primaryFocus,
+    requirement: parsed.requirement,
+    keyDrivers: parsed.keyDrivers ?? null,
+    generatedAt: timestamp,
+    updatedAt: timestamp,
+    modifiedByUser: false,
+  } satisfies GoalTrainingAssessmentRecord;
+
+  await prisma.profile.update({
+    where: { userId },
+    data: { goalTrainingAssessment: record },
+  });
+
+  return record;
 }
 
 async function callOpenAi({
@@ -360,8 +469,11 @@ async function callOpenAi({
   schema,
 }: {
   prompt: string;
-  context: ActivityInsightContext;
-  schema: typeof insightReportJsonSchema | typeof recommendationJsonSchema;
+  context: unknown;
+  schema:
+    | typeof insightReportJsonSchema
+    | typeof recommendationJsonSchema
+    | typeof goalTrainingAssessmentJsonSchema;
 }): Promise<string> {
   if (!env.OPENAI_API_KEY) {
     throw new MissingOpenAiKeyError();
@@ -443,6 +555,7 @@ export async function generateActivityInsightReport(activityId: string, userId?:
   return {
     activityId: updated.id,
     report: parsed,
+    goalTrainingAssessment: context.goalTrainingAssessment ?? null,
     generatedAt: updated.insightReportGeneratedAt?.toISOString() ?? generatedAt.toISOString(),
   };
 }

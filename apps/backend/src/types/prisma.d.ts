@@ -48,6 +48,7 @@ declare module '@prisma/client' {
     goals: Record<string, unknown> | unknown[] | null;
     strengths: string | null;
     weaknesses: string | null;
+    goalTrainingAssessment: Record<string, unknown> | null;
     analytics: Record<string, unknown> | null;
     createdAt: Date;
     updatedAt: Date;

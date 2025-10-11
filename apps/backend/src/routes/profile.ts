@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { env } from '../env.js';
 import { prisma } from '../prisma.js';
+import { parseGoalTrainingAssessment } from '../services/activityInsightService.js';
 
 const MAX_TARGET_ITEMS = 20;
 
@@ -116,6 +117,44 @@ function normalizeTargetList(value: unknown): TargetInput[] | undefined {
       notes: notes ? notes.trim() : null,
     } satisfies TargetInput;
   });
+}
+
+function normalizeGoalTrainingAssessmentInput(value: unknown):
+  | {
+      primaryFocus: string;
+      requirement: string;
+      keyDrivers?: string | null;
+    }
+  | null
+  | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const primaryFocus = typeof value.primaryFocus === 'string' ? value.primaryFocus : '';
+  const requirement = typeof value.requirement === 'string' ? value.requirement : '';
+
+  let keyDrivers: string | null | undefined;
+  if (typeof value.keyDrivers === 'string') {
+    const trimmed = value.keyDrivers.trim();
+    keyDrivers = trimmed.length > 0 ? trimmed : null;
+  } else if (value.keyDrivers == null) {
+    keyDrivers = null;
+  }
+
+  return {
+    primaryFocus,
+    requirement,
+    ...(keyDrivers !== undefined ? { keyDrivers } : {}),
+  };
 }
 
 const criticalEffortSchema = z
@@ -277,6 +316,7 @@ function buildProfileResponse(profile: PrismaProfile) {
     goals: formatTargetResponse(profile.goals),
     strengths: typeof profile.strengths === 'string' ? profile.strengths : null,
     weaknesses: typeof profile.weaknesses === 'string' ? profile.weaknesses : null,
+    goalTrainingAssessment: parseGoalTrainingAssessment(profile.goalTrainingAssessment ?? null),
     powerBests: extractPowerBests(analytics),
   };
 }
@@ -350,6 +390,28 @@ const profileUpdateSchema = z.object({
   goals: z.array(targetSchema).max(MAX_TARGET_ITEMS, 'You can track up to 20 goals.').optional(),
   strengths: z.string().trim().max(500).optional().nullable(),
   weaknesses: z.string().trim().max(500).optional().nullable(),
+  goalTrainingAssessment: z
+    .object({
+      primaryFocus: z
+        .string()
+        .trim()
+        .min(1, 'Training focus is required.')
+        .max(80, 'Training focus must be 80 characters or less.'),
+      requirement: z
+        .string()
+        .trim()
+        .min(1, 'Training requirement summary cannot be empty.')
+        .max(400, 'Training requirement summary must be 400 characters or less.'),
+      keyDrivers: z
+        .string()
+        .trim()
+        .min(1, 'Key drivers must include at least one detail.')
+        .max(400, 'Key drivers must be 400 characters or less.')
+        .optional()
+        .nullable(),
+    })
+    .optional()
+    .nullable(),
 });
 
 function toNullable<T>(value: T | undefined | null): T | null | undefined {
@@ -447,6 +509,9 @@ profileRouter.put(
       goals: normalizeTargetList(req.body.goals),
       strengths: toNullable(req.body.strengths),
       weaknesses: toNullable(req.body.weaknesses),
+      goalTrainingAssessment: normalizeGoalTrainingAssessmentInput(
+        req.body.goalTrainingAssessment,
+      ),
     };
 
     const parsed = profileUpdateSchema.safeParse(payload);
@@ -459,12 +524,33 @@ profileRouter.put(
 
     const data = parsed.data;
 
-    const cleanedEntries = Object.entries(data).filter(([, value]) => value !== undefined);
-    const updateData = Object.fromEntries(cleanedEntries);
-
     const userId = req.user.id;
-
     const existing = await prisma.profile.findUnique({ where: { userId } });
+
+    const cleanedEntries = Object.entries(data).filter(([, value]) => value !== undefined);
+    const updateData = Object.fromEntries(cleanedEntries) as Record<string, unknown>;
+
+    if (data.goalTrainingAssessment !== undefined) {
+      if (data.goalTrainingAssessment === null) {
+        updateData.goalTrainingAssessment = null;
+      } else {
+        const nowIso = new Date().toISOString();
+        const existingAssessment = parseGoalTrainingAssessment(
+          existing?.goalTrainingAssessment ?? null,
+        );
+        updateData.goalTrainingAssessment = {
+          primaryFocus: data.goalTrainingAssessment.primaryFocus,
+          requirement: data.goalTrainingAssessment.requirement,
+          keyDrivers:
+            data.goalTrainingAssessment.keyDrivers != null
+              ? data.goalTrainingAssessment.keyDrivers
+              : null,
+          generatedAt: existingAssessment?.generatedAt ?? nowIso,
+          updatedAt: nowIso,
+          modifiedByUser: true,
+        };
+      }
+    }
 
     if (!existing) {
       const created = await prisma.profile.create({ data: { userId, ...updateData } });
